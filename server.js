@@ -102,12 +102,21 @@ http.createServer(async (req, res) => {
   let p = decodeURIComponent(url.pathname); if (p.endsWith('/')) p += 'index.html';
   const file = path.normalize(path.join(PUB, p));
   if (!file.startsWith(PUB)) return json(res, 403, { erro: 'Proibido' });
-  fs.stat(file, (err, st) => {
-    if (err || !st.isFile()) return json(res, 404, { erro: 'Não encontrado' });
-    const ext = path.extname(file);
-    const shell = /index\.html$|sw\.js$|app\.js$|style\.css$|jump-counter\.js$|manifest/.test(file);
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Content-Length': st.size, 'Cache-Control': shell ? 'no-cache' : 'public, max-age=604800' });
+  // Aceita os arquivos tanto em public/... quanto soltos na raiz do projeto (upload sem pastas)
+  const base = path.basename(p);
+  const alt = path.join(ROOT, base);
+  const PRIVADOS = new Set(['server.js', 'package.json', 'package-lock.json', 'readme.md', 'scores.json']);
+  const candidates = [file];
+  if (!base.startsWith('.') && !PRIVADOS.has(base.toLowerCase())) candidates.push(alt);
+  const send = (f, st) => {
+    const shell = /index\.html$|sw\.js$|app\.js$|style\.css$|jump-counter\.js$|manifest/.test(f);
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream', 'Content-Length': st.size, 'Cache-Control': shell ? 'no-cache' : 'public, max-age=604800' });
     if (req.method === 'HEAD') return res.end();
-    fs.createReadStream(file).pipe(res);
-  });
+    fs.createReadStream(f).pipe(res);
+  };
+  const tryNext = i => {
+    if (i >= candidates.length) return json(res, 404, { erro: 'Não encontrado' });
+    fs.stat(candidates[i], (err, st) => (err || !st.isFile()) ? tryNext(i + 1) : send(candidates[i], st));
+  };
+  tryNext(0);
 }).listen(PORT, () => console.log('Ronald Jump rodando na porta ' + PORT));
