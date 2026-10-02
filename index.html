@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Ronald Jump</title>
+<meta name="theme-color" content="#0a0a0a">
+<meta name="description" content="Conte seus saltos pela câmera, veja as calorias e entre no ranking.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ronald Jump">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="preload" href="/vendor/fonts/big-shoulders-display-latin-900-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main id="screens">
+
+  <section id="home" class="screen on">
+    <header class="top"><img src="/icons/logo.png" alt="" width="40" height="40"><b class="wordmark">Ronald Jump</b></header>
+    <div class="hero">
+      <div class="orbit"><i class="ring"></i><i class="ring b"></i><img src="/icons/logo.png" alt="Logo Ronald Jump"></div>
+      <h1>Salte. A câmera conta.</h1>
+      <p class="muted">Apoie o celular em pé no chão, a uns 2 metros, com a câmera frontal pegando seu corpo inteiro.</p>
+    </div>
+    <h2 class="sub">Meta do treino</h2>
+    <div class="chips" id="goals" role="radiogroup" aria-label="Meta do treino"></div>
+    <label class="switch"><input type="checkbox" id="ropeToggle" checked><span>Mostrar corda virtual</span></label>
+    <button class="btn big" id="start" type="button">Começar treino</button>
+    <div class="stats">
+      <div><b id="sToday">0</b><span>saltos hoje</span></div>
+      <div><b id="sKcal">0</b><span>kcal hoje</span></div>
+      <div><b id="sStreak">0</b><span>dias seguidos</span></div>
+    </div>
+    <h2 class="sub">Últimos 7 dias</h2>
+    <div class="bars" id="bars" aria-label="Saltos por dia nos últimos 7 dias"></div>
+  </section>
+
+  <section id="history" class="screen">
+    <header class="top"><b class="wordmark">Histórico</b></header>
+    <p class="muted" id="histTotal"></p>
+    <ul class="list" id="histList"></ul>
+  </section>
+
+  <section id="rank" class="screen">
+    <header class="top"><b class="wordmark">Ranking mundial</b></header>
+    <div class="tabs" role="tablist">
+      <button class="tab on" data-p="week" role="tab" type="button">Semana</button>
+      <button class="tab" data-p="all" role="tab" type="button">Sempre</button>
+    </div>
+    <h2 class="sub">Pessoas</h2>
+    <ol class="list rank" id="rankUsers"></ol>
+    <h2 class="sub">Países</h2>
+    <ol class="list rank" id="rankCountries"></ol>
+    <p class="muted" id="rankMsg" role="status"></p>
+  </section>
+
+  <section id="profile" class="screen">
+    <header class="top"><b class="wordmark">Perfil</b></header>
+    <label class="field">Seu nome no ranking<input id="pName" maxlength="20" autocomplete="nickname" placeholder="Ex.: Ronald"></label>
+    <label class="field">Peso (kg), para estimar calorias<input id="pKg" type="number" inputmode="decimal" min="30" max="250" step="0.5"></label>
+    <label class="field">País<select id="pCountry"></select></label>
+    <label class="switch"><input type="checkbox" id="pSound"><span>Som e vibração a cada salto</span></label>
+    <label class="switch"><input type="checkbox" id="pRank"><span>Enviar meus treinos ao ranking</span></label>
+    <button class="btn" id="install" type="button" hidden>Instalar o app</button>
+    <p class="muted" id="iosHint" hidden>No iPhone: toque em Compartilhar e depois em Adicionar à Tela de Início.</p>
+    <h2 class="sub">Privacidade</h2>
+    <p class="muted">A câmera é usada só para detectar seus movimentos, direto no celular. O vídeo não é gravado nem enviado. Ao entrar no ranking, enviamos apenas nome, país e o número de saltos e segundos do treino.</p>
+    <p class="muted">As calorias são uma estimativa (10 METs × peso × tempo) e não substituem orientação profissional.</p>
+  </section>
+</main>
+
+<nav id="nav" aria-label="Navegação">
+  <button class="on" data-s="home" type="button"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>Treinar</button>
+  <button data-s="history" type="button"><svg viewBox="0 0 24 24"><path d="M12 8v5l3 2M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Histórico</button>
+  <button data-s="rank" type="button"><svg viewBox="0 0 24 24"><path d="M5 21V11h4v10M10 21V4h4v17M15 21v-7h4v7"/></svg>Ranking</button>
+  <button data-s="profile" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Perfil</button>
+</nav>
+
+<div id="workout" hidden>
+  <canvas id="cv"></canvas>
+  <div class="hud top-hud">
+    <button class="x" id="cancel" type="button" aria-label="Sair do treino">✕</button>
+    <div class="pill"><b id="hTime">00:00</b></div>
+    <div class="pill"><b id="hKcal">0,0</b> kcal</div>
+  </div>
+  <div class="goalbar" id="goalbar" hidden><i id="goalfill"></i></div>
+  <div class="center">
+    <div class="count" id="hCount">0</div>
+    <div class="eq" id="hEq"></div>
+  </div>
+  <div class="msg" id="hMsg" role="status" aria-live="polite"></div>
+  <div class="hud bot-hud"><button class="btn stop" id="stop" type="button" hidden>Finalizar</button></div>
+  <div class="countdown" id="cd" hidden></div>
+</div>
+
+<div id="result" hidden>
+  <div class="card">
+    <img src="/icons/logo.png" alt="" width="72" height="72">
+    <h2>Treino concluído</h2>
+    <div class="big-n" id="rJumps">0</div><div class="muted">saltos</div>
+    <div class="stats">
+      <div><b id="rTime">0:00</b><span>tempo</span></div>
+      <div><b id="rKcal">0</b><span>kcal</span></div>
+      <div><b id="rPace">0</b><span>saltos/min</span></div>
+    </div>
+    <p id="rEq"></p>
+    <p class="muted" id="rRank" role="status"></p>
+    <button class="btn" id="rShare" type="button">Compartilhar</button>
+    <button class="btn ghost" id="rClose" type="button">Voltar ao início</button>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
