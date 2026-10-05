@@ -318,7 +318,7 @@ var NADA = new Proxy(function() {
 }, toggle() {
 }, contains: () => false } : k === Symbol.toPrimitive ? () => "" : NADA, set: () => true, apply: () => NADA });
 var $ = (id) => document.getElementById(id) || NADA;
-var VERSAO = 9;
+var VERSAO = 11;
 (async () => {
   const meta = Number(document.querySelector('meta[name="rj-versao"]')?.content || 0);
   try {
@@ -364,7 +364,11 @@ var dayKey = (d) => {
   const x = new Date(d);
   return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
 };
-var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, dist: "medio", dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
+var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, dist: "corpo", distV: 0, distCustom: null, dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
+if (!profile.distV) {
+  if (profile.dist !== "custom") profile.dist = "corpo";
+  profile.distV = 1;
+}
 var saveProfile = () => store.set("rj.profile", profile);
 saveProfile();
 var history = store.get("rj.hist", []);
@@ -706,7 +710,20 @@ async function loadModel(onStatus) {
 var DIST = {
   perto: { min: 0.2, run: 0.15, ideal: 0.28, max: 0.62, txt: "cerca de 1 metro", passos: "dois passos" },
   medio: { min: 0.13, run: 0.1, ideal: 0.17, max: 0.45, txt: "cerca de 1,5 a 2 metros", passos: "tr\xEAs passos" },
-  longe: { min: 0.09, run: 0.07, ideal: 0.12, max: 0.3, txt: "cerca de 2,5 a 3 metros", passos: "quatro passos" }
+  longe: { min: 0.09, run: 0.07, ideal: 0.12, max: 0.3, txt: "cerca de 2,5 a 3 metros", passos: "quatro passos" },
+  // corpo inteiro: exige cabeça, ombros, quadril e pés na tela (altura do corpo = 55% a 92% da imagem); não usa a largura dos ombros
+  corpo: { min: 0.09, run: 0.05, ideal: 0.12, max: 0.3, corpo: true, txt: "cerca de 2 a 2,5 metros", passos: "tr\xEAs a quatro passos" }
+};
+var distAtual = () => profile.dist === "custom" && profile.distCustom ? { ...profile.distCustom, txt: "a dist\xE2ncia que voc\xEA calibrou", passos: "a mesma posi\xE7\xE3o da calibra\xE7\xE3o" } : DIST[profile.dist] || DIST.medio;
+function salvarDistCustom(sw) {
+  profile.distCustom = { ideal: +sw.toFixed(3), min: +(sw * 0.78).toFixed(3), run: +(sw * 0.6).toFixed(3), max: +(sw * 1.7).toFixed(3) };
+  profile.dist = "custom";
+  saveProfile();
+  aplicarDist();
+}
+var mediana = (a) => {
+  const b = [...a].sort((x, y) => x - y);
+  return b[Math.floor(b.length / 2)];
 };
 var dicaAberta = false;
 var W = { running: false, raf: 0, stream: null, lock: null };
@@ -774,7 +791,13 @@ async function startWorkout() {
   }
   const counter = new JumpCounter({ up: { alta: 0.035, normal: 0.05, baixa: 0.07 }[profile.sens] || 0.05 });
   let mode = "tronco", modeSince = 0;
-  let phase = "position", okSince = 0, cdStart = 0, lastCd = 0;
+  let phase = "position", okSince = 0, cdStart = 0, lastCd = 0, calib = null, calibBeep = 0;
+  W.calibrar = () => {
+    calib = { t0: performance.now(), s: [] };
+    abrirDica(false);
+    $("calibrar").hidden = true;
+  };
+  $("calibrar").hidden = false;
   let t0 = 0, active = 0, lastTick = 0, lastSeen = 0, lastJumpAt = 0, lastVT = -1, paused = false;
   const counted = () => counter.count;
   W.running = true;
@@ -809,10 +832,21 @@ async function startWorkout() {
     const shOk = !!lm && [L.ls, L.rs].every((i) => vis(lm, i) > 0.5);
     const hipOk = !!lm && [L.lh, L.rh].every((i) => vis(lm, i) > 0.5);
     const sw = shOk ? Math.hypot((lm[L.ls].x - lm[L.rs].x) * vw, (lm[L.ls].y - lm[L.rs].y) * vh) / vh : 0;
-    const dd = DIST[profile.dist] || DIST.medio;
-    const longe = shOk && sw < (phase === "run" ? dd.run : dd.min);
-    const perto = shOk && sw > dd.max;
-    const torsoOk = shOk && !longe && (phase === "run" || !perto);
+    const dd = distAtual();
+    let longe, perto, torsoOk, semPes = false;
+    if (dd.corpo) {
+      const todos = !!lm && [0, L.ls, L.rs, L.lh, L.rh, L.la, L.ra].every((i) => vis(lm, i) > 0.5);
+      const alt = todos ? (lm[L.la].y + lm[L.ra].y) / 2 - lm[0].y : 0;
+      const dentro = todos && lm[0].y > 0.01 && Math.max(lm[L.la].y, lm[L.ra].y) < 0.985;
+      longe = todos && alt < 0.55;
+      perto = todos && (alt > 0.92 || !dentro);
+      semPes = shOk && !todos;
+      torsoOk = phase === "run" ? shOk && sw > dd.run : todos && !longe && !perto;
+    } else {
+      longe = shOk && sw < (phase === "run" ? dd.run : dd.min);
+      perto = shOk && sw > dd.max;
+      torsoOk = shOk && !longe && (phase === "run" || !perto);
+    }
     if (torsoOk) {
       const want = hipOk ? "tronco" : "ombros";
       if (phase !== "run") {
@@ -829,7 +863,30 @@ async function startWorkout() {
       lastSeen = now;
     }
     if (phase === "position") {
-      if (dicaAberta) {
+      if (calib) {
+        okSince = 0;
+        const dt = now - calib.t0;
+        if (dt < 5e3) {
+          const seg = Math.ceil((5e3 - dt) / 1e3);
+          msg(`V\xE1 para a posi\xE7\xE3o em que o outro app funciona bem\u2026 ${seg}`);
+          if (seg !== calibBeep) {
+            calibBeep = seg;
+            beep(660, 100);
+          }
+        } else if (dt < 6500) {
+          msg("Fique parado\u2026");
+          if (shOk) calib.s.push(sw);
+        } else {
+          if (calib.s.length >= 10) {
+            salvarDistCustom(mediana(calib.s));
+            msg("Pronto! Dist\xE2ncia salva.");
+            beep(1100, 250);
+            toast("Dist\xE2ncia salva. O app vai usar essa posi\xE7\xE3o.");
+          } else msg("N\xE3o consegui ver voc\xEA. Fique de frente para a c\xE2mera e tente de novo.");
+          calib = null;
+          $("calibrar").hidden = false;
+        }
+      } else if (dicaAberta) {
         okSince = 0;
         msg("");
       } else if (torsoOk) {
@@ -837,13 +894,14 @@ async function startWorkout() {
         msg("Isso! Fique parado por um instante\u2026");
       } else {
         okSince = 0;
-        msg(!lm ? "Procurando voc\xEA\u2026 fique de frente para a c\xE2mera" : longe ? "Chegue mais perto: encha o contorno com cabe\xE7a e ombros" : perto ? "Afaste s\xF3 um pouquinho" : "Mostre a cabe\xE7a e os ombros para a c\xE2mera");
+        msg(!lm ? "Procurando voc\xEA\u2026 fique de frente para a c\xE2mera" : semPes ? "Afaste-se at\xE9 aparecer o corpo todo, da cabe\xE7a aos p\xE9s" : longe && dd.corpo ? "Chegue um pouco mais perto: o corpo deve ocupar a maior parte da tela" : longe ? "Chegue mais perto: encha o contorno com cabe\xE7a e ombros" : perto ? "Afaste s\xF3 um pouquinho" : "Mostre a cabe\xE7a e os ombros para a c\xE2mera");
       }
       if (okSince && now - okSince > 1200) {
         phase = "count";
         cdStart = now;
         lastCd = 4;
         msg("");
+        $("calibrar").hidden = true;
         $("cd").hidden = false;
       }
     } else if (phase === "count") {
@@ -855,6 +913,7 @@ async function startWorkout() {
       }
       if (left <= 0) {
         phase = "run";
+        $("calibrar").hidden = true;
         $("cd").hidden = true;
         $("stop").hidden = false;
         t0 = lastTick = now;
@@ -920,7 +979,10 @@ async function startWorkout() {
       }
       W.end = { jumps: counter.count, secs: Math.round(active) };
     }
-    if (phase === "position" && !dicaAberta) guia(cw, ch, dd.ideal * vh * sc, torsoOk);
+    if (phase === "position" && !dicaAberta) {
+      if (dd.corpo) guiaCorpo(cw, ch, torsoOk);
+      else guia(cw, ch, dd.ideal * vh * sc, torsoOk);
+    }
     if (lm && torsoOk) {
       ctx.fillStyle = "rgba(232,194,49,.85)";
       for (const i of hipOk ? [L.ls, L.rs, L.lh, L.rh] : [L.ls, L.rs]) {
@@ -934,6 +996,36 @@ async function startWorkout() {
     ctx.restore();
   };
   loop();
+}
+function guiaCorpo(cw, ch, ok) {
+  const cx = cw / 2, H = ch * 0.74, y0 = ch * 0.12;
+  const hd = y0 + 0.06 * H, ys = y0 + 0.17 * H, yh = y0 + 0.52 * H, yk = y0 + 0.74 * H, yf = y0 + H, ws = 0.11 * H, wh = 0.08 * H;
+  ctx.save();
+  ctx.setLineDash([12, 10]);
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = ok ? "#5be37d" : "#e8c231";
+  ctx.shadowColor = "#0009";
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.arc(cx, hd, 0.055 * H, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - ws, ys);
+  ctx.lineTo(cx + ws, ys);
+  ctx.moveTo(cx - ws, ys);
+  ctx.lineTo(cx - wh, yh);
+  ctx.lineTo(cx - wh * 0.9, yk);
+  ctx.lineTo(cx - wh * 0.8, yf);
+  ctx.moveTo(cx + ws, ys);
+  ctx.lineTo(cx + wh, yh);
+  ctx.lineTo(cx + wh * 0.9, yk);
+  ctx.lineTo(cx + wh * 0.8, yf);
+  ctx.moveTo(cx - wh, yh);
+  ctx.lineTo(cx + wh, yh);
+  ctx.stroke();
+  ctx.restore();
 }
 function guia(cw, ch, swPx, ok) {
   const cx = cw / 2, ys = ch * 0.58, r = swPx * 0.26, yc = ys - swPx * 0.5;
@@ -987,14 +1079,20 @@ function drawRope(P, lm, now, counter, lastJumpAt, swPx) {
   }
 }
 function aplicarDist() {
-  const d = DIST[profile.dist] || DIST.medio;
-  document.querySelectorAll("#distChips button").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.d === profile.dist)));
-  $("dicaDist").innerHTML = `Fique a <b>${d.txt}</b> (${d.passos}).`;
-  $("dicaTxt").textContent = d.txt;
+  if (profile.dist === "custom" && !profile.distCustom) profile.dist = "medio";
+  const d = distAtual(), tem = !!profile.distCustom;
+  document.querySelectorAll("#distChips button").forEach((b) => {
+    b.setAttribute("aria-checked", String(b.dataset.d === profile.dist));
+    if (b.dataset.d === "custom") b.hidden = !tem;
+  });
+  $("dicaDist").innerHTML = d.corpo ? `D\xEA alguns passos para tr\xE1s, a <b>${d.txt}</b>, at\xE9 aparecer o <b>corpo todo, da cabe\xE7a aos p\xE9s</b>.` : profile.dist === "custom" ? "Fique na <b>mesma posi\xE7\xE3o que voc\xEA calibrou</b>." : `Fique a <b>${d.txt}</b> (${d.passos}).`;
+  $("dicaTxt").textContent = profile.dist === "custom" ? "sua posi\xE7\xE3o" : d.txt;
+  const oc = $("pDist").querySelector('option[value="custom"]');
+  if (oc) oc.disabled = !tem;
   $("pDist").value = profile.dist;
 }
 function escolherDist(v) {
-  if (!DIST[v]) return;
+  if (!DIST[v] && !(v === "custom" && profile.distCustom)) return;
   profile.dist = v;
   saveProfile();
   aplicarDist();
@@ -1006,6 +1104,7 @@ function abrirDica(sim) {
   $("dica").hidden = !sim;
 }
 $("dicaOk").addEventListener("click", () => abrirDica(false));
+$("calibrar").addEventListener("click", () => W.calibrar && W.calibrar());
 $("ajuda").addEventListener("click", () => abrirDica(true));
 function endWorkout(silent) {
   abrirDica(false);

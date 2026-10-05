@@ -15,7 +15,7 @@ const VOLUME = process.env.RAILWAY_VOLUME_MOUNT_PATH || '';
 const DATA_DIR = process.env.DATA_DIR || VOLUME || path.join(ROOT, 'data');
 const PORT = process.env.PORT || 3000;
 const FLAT = !fs.existsSync(PUB); // sem pasta public/ = modo "plano" (upload sem pastas no site do GitHub)
-const VERSAO_APP = 9;
+const VERSAO_APP = 11;
 const MODEL_FILE = path.join(PUB, 'model', 'pose_landmarker_lite.task');
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
 

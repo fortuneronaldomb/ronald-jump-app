@@ -127,3 +127,5 @@ details.sec summary{color:var(--yellow)}
 .distChips{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:14px;color:var(--muted)}
 .distChips button{flex:1;border:1.5px solid var(--mid);background:var(--char);border-radius:999px;padding:10px 6px;font-weight:700;color:var(--bone);cursor:pointer;min-height:44px}
 .distChips button[aria-checked=true]{background:var(--yellow);border-color:var(--yellow);color:var(--ink)}
+.bot-hud{flex-direction:column;align-items:stretch;gap:10px}.bot-hud .btn{margin-top:0;background:#000b}.bot-hud .btn.stop{background:var(--orange)}
+.distChips{flex-wrap:wrap}.distChips span{flex:1 0 100%}.distChips button{flex:1 1 22%}
