@@ -15,7 +15,7 @@
         passos([]);
       } else if (h.duravel === false) {
         caixa('ruim', 'ARMAZENAMENTO TEMPORÁRIO', 'As contas são apagadas a cada atualização. Por segurança, novos cadastros estão pausados até isso ser corrigido.');
-        passos(['Abra o <b>Railway</b> e entre no projeto do Ronald Jump.', 'No quadrado do serviço <b>ronald-jump-app</b>, clique com o botão direito (ou use <b>Cmd + K</b> e digite <b>Volume</b>) e escolha <b>Attach Volume</b> / <b>Create Volume</b>.', 'No caminho de montagem (<b>Mount path</b>), escreva <b>/data</b> e confirme.', 'Aguarde o Railway publicar de novo (Deployments: <b>Deployment successful</b>).', 'Volte aqui e toque em <b>Verificar de novo</b>. Deve ficar verde.']);
+        passos(['Abra o <b>Railway</b> e entre no projeto do Ronald Jump.', 'Clique com o botão direito num <b>espaço vazio</b> do quadro do projeto (ou aperte <b>Cmd + K</b> e digite <b>Volume</b>) e escolha <b>Volume</b> / <b>Create Volume</b>.', 'Quando perguntar a qual serviço ligar, escolha <b>ronald-jump-app</b>. No caminho de montagem (<b>Mount path</b>), escreva <b>/data</b> e confirme.', 'Aguarde o Railway publicar de novo (Deployments: <b>Deployment successful</b>).', 'Volte aqui e toque em <b>Verificar de novo</b>. Deve ficar verde.']);
       } else {
         caixa('ok', 'ARMAZENAMENTO SEGURO', 'As contas e treinos ficam guardados e não são apagados nas atualizações.' + (recente ? ' Os dados foram criados junto com este deploy: é normal na primeira vez com o volume. Se isso se repetir depois de CADA atualização, eles estão sendo apagados: me avise.' : ''));
         passos([]);
