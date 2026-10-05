@@ -6,7 +6,7 @@ const NADA = new Proxy(function () {}, { get: (t, k) => k === 'style' || k === '
 const $ = id => document.getElementById(id) || NADA;
 
 // Confere se a página (index.html) e o código (app.js) são da mesma versão. Se não forem, limpa o cache e recarrega uma vez.
-const VERSAO = 4;
+const VERSAO = 5;
 (async () => {
   const meta = Number(document.querySelector('meta[name="rj-versao"]')?.content || 0);
   try { if (meta === VERSAO) { sessionStorage.removeItem('rj.recarregou'); return; } if (sessionStorage.getItem('rj.recarregou')) return; sessionStorage.setItem('rj.recarregou', '1'); } catch {}
@@ -43,7 +43,7 @@ async function api(path, opts = {}) {
 function sairLocal() {
   token = ''; user = null; history = []; pending = [];
   ['rj.token', 'rj.user', 'rj.hist', 'rj.pending'].forEach(k => { try { localStorage.removeItem(k); } catch {} });
-  endWorkout(true); $('result').hidden = true; abrirAuth();
+  endWorkout(true); $('result').hidden = true; $('aEmail').value = ''; $('aPass').value = ''; abrirAuth();
 }
 
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2800); }
@@ -423,4 +423,5 @@ function entrar() { $('auth').hidden = true; renderGoals(); renderProfile(); sho
 
 renderGoals(); renderProfile(); renderHome(); modoAuth('login');
 iniciar();
+window.__rjPronto = true; // avisa o boot.js que o app carregou
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));

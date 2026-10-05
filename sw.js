@@ -1,6 +1,6 @@
 // Service worker: o app abre offline; o modelo de pose fica em cache depois do 1º uso.
-const V = 'rj-v5';
-const SHELL = ['/', '/index.html', '/style.css', '/app.js', '/jump-counter.js', '/celebration.js', '/config.js', '/privacidade.html', '/manifest.webmanifest',
+const V = 'rj-v6';
+const SHELL = ['/', '/index.html', '/style.css', '/app.js', '/jump-counter.js', '/celebration.js', '/config.js', '/boot.js', '/privacidade.html', '/manifest.webmanifest',
   '/icons/logo.png', '/icons/icon-192.png', '/icons/apple-touch-icon.png',
   '/vendor/fonts/big-shoulders-display-latin-900-normal.woff2', '/vendor/fonts/big-shoulders-display-latin-700-normal.woff2',
   '/vendor/fonts/dm-sans-latin-400-normal.woff2', '/vendor/fonts/dm-sans-latin-700-normal.woff2'];

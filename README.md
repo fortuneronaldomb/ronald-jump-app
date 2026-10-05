@@ -135,3 +135,5 @@ Testado com sinais simulados (inclusive com mais ruído, como o sinal dos ombros
 Se contar de menos, aumente a sensibilidade. Se contar de mais, diminua.
 
 **Atualizações sem travar (versão 4.1):** `index.html` e `app.js` precisam ser da mesma versão. O app agora confere isso sozinho (número em `rj-versao` no `index.html` e `VERSAO` no `app.js`): se estiverem diferentes, limpa o cache e recarrega uma vez, e elementos que faltarem na tela não derrubam mais o app. Ao lançar uma versão nova, troque o número nos dois lugares e em `sw.js` (`rj-vN`).
+
+**Versão 5 (rede de segurança):** `boot.js` mostra o aviso "Atualizar o app" (limpa cache e recarrega) se o app não terminar de carregar em 6 segundos ou se der erro ao abrir. Para checar se o servidor está no ar, abra `/api/health` no endereço do app: deve aparecer `{"ok":true,...}`. O endereço do cliente para os limites de tentativas agora vem do cabeçalho `x-real-ip` do proxy.

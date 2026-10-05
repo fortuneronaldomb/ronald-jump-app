@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Ronald Jump</title>
 <meta name="theme-color" content="#0a0a0a">
-<meta name="rj-versao" content="4">
+<meta name="rj-versao" content="5">
 <meta name="description" content="Conte seus saltos pela câmera, veja as calorias e entre no ranking.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -16,6 +16,7 @@
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preload" href="/vendor/fonts/big-shoulders-display-latin-900-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
+<script src="/boot.js"></script>
 <script src="/config.js"></script>
 </head>
 <body>
@@ -82,6 +83,7 @@
       <button class="btn ghost" id="sAll" type="button">Sair de todos os aparelhos</button>
       <button class="btn ghost" id="sExport" type="button">Baixar meus dados</button>
     </details>
+    <p class="muted" id="versaoApp">Versão 5</p>
     <details class="danger"><summary>Excluir minha conta</summary>
       <p class="muted">Apaga sua conta, seus treinos e seu lugar no ranking. Não dá para desfazer.</p>
       <label class="field">Confirme sua senha<input id="dPass" type="password" autocomplete="current-password"></label>
