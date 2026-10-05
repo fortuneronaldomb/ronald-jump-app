@@ -12,7 +12,7 @@ const www = path.join(out, 'www');
 
 // destino dentro de www -> aceita o arquivo em public/<destino> ou solto ao lado deste script
 const arquivos = [
-  'index.html', 'config.js', 'boot.js', 'style.css', 'app.js', 'jump-counter.js', 'celebration.js', 'privacidade.html', 'manifest.webmanifest',
+  'index.html', 'config.js', 'boot.js', 'style.css', 'app.js', 'privacidade.html', 'manifest.webmanifest',
   'icons/logo.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png',
   'vendor/fonts/big-shoulders-display-latin-700-normal.woff2', 'vendor/fonts/big-shoulders-display-latin-900-normal.woff2',
   'vendor/fonts/dm-sans-latin-400-normal.woff2', 'vendor/fonts/dm-sans-latin-700-normal.woff2',
@@ -20,6 +20,8 @@ const arquivos = [
   'vendor/mediapipe/wasm/vision_wasm_internal.js', 'vendor/mediapipe/wasm/vision_wasm_internal.wasm',
   'vendor/mediapipe/wasm/vision_wasm_module_internal.js', 'vendor/mediapipe/wasm/vision_wasm_module_internal.wasm'
 ];
+// jump-counter.js e celebration.js só existem se o app.js estiver em partes (versão de desenvolvimento)
+const opcionais = ['jump-counter.js', 'celebration.js'];
 fs.rmSync(www, { recursive: true, force: true });
 let faltam = [];
 for (const dest of arquivos) {
@@ -28,6 +30,7 @@ for (const dest of arquivos) {
   fs.mkdirSync(path.dirname(path.join(www, dest)), { recursive: true });
   fs.copyFileSync(src, path.join(www, dest));
 }
+for (const dest of opcionais) { const src = [path.join(here, 'public', dest), path.join(here, dest)].find(f => fs.existsSync(f)); if (src) fs.copyFileSync(src, path.join(www, dest)); }
 if (faltam.length) { console.error('Arquivos que não encontrei:\n - ' + faltam.join('\n - ')); process.exit(1); }
 
 // aponta o app para o seu servidor (login, treinos e ranking)

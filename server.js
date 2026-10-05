@@ -226,7 +226,7 @@ const srv = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
-    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: 5, hora: new Date().toISOString() });
+    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: 6, hora: new Date().toISOString() });
     if (limited('api:' + ip, 300, 6e4)) return json(res, 429, { erro: 'Muitas requisições. Aguarde um instante.' });
     try { return await api(req, res, url, ip); }
     catch (e) { return json(res, e && e.message === 'grande' ? 413 : 400, { erro: 'Requisição inválida.' }); }

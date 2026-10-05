@@ -1,10 +1,10 @@
 // Service worker: o app abre offline; o modelo de pose fica em cache depois do 1º uso.
-const V = 'rj-v6';
+const V = 'rj-v7';
 const SHELL = ['/', '/index.html', '/style.css', '/app.js', '/jump-counter.js', '/celebration.js', '/config.js', '/boot.js', '/privacidade.html', '/manifest.webmanifest',
   '/icons/logo.png', '/icons/icon-192.png', '/icons/apple-touch-icon.png',
   '/vendor/fonts/big-shoulders-display-latin-900-normal.woff2', '/vendor/fonts/big-shoulders-display-latin-700-normal.woff2',
   '/vendor/fonts/dm-sans-latin-400-normal.woff2', '/vendor/fonts/dm-sans-latin-700-normal.woff2'];
-self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
+self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
