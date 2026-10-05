@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Ronald Jump</title>
 <meta name="theme-color" content="#0a0a0a">
-<meta name="rj-versao" content="7">
+<meta name="rj-versao" content="8">
 <meta name="description" content="Conte seus saltos pela câmera, veja as calorias e entre no ranking.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -23,7 +23,7 @@
 <main id="screens">
 
   <section id="home" class="screen on">
-    <header class="top"><img src="/icons/logo.png" alt="" width="40" height="40"><b class="wordmark">Ronald Jump</b></header>
+    <header class="top"><img src="/icons/logo.png" alt="" width="40" height="40"><b class="wordmark">Ronald Jump</b><i class="avatar" id="hAvatar" aria-hidden="true"></i></header>
     <div class="hero">
       <div class="orbit"><i class="ring"></i><i class="ring b"></i><img src="/icons/logo.png" alt="Logo Ronald Jump"></div>
       <h1>Salte. A câmera conta.</h1>
@@ -63,11 +63,21 @@
 
   <section id="profile" class="screen">
     <header class="top"><b class="wordmark">Perfil</b></header>
+    <div class="foto">
+      <i class="avatar big" id="pFotoImg" aria-hidden="true"></i>
+      <div class="fotoBtns">
+        <button class="btn small" id="pFotoBtn" type="button">Escolher foto</button>
+        <button class="btn small ghost" id="pFotoRem" type="button" hidden>Remover foto</button>
+      </div>
+      <input type="file" id="pFotoInput" accept="image/*" hidden>
+    </div>
+    <label class="switch" id="pFotoRankLbl" hidden><input type="checkbox" id="pFotoRank"><span>Mostrar minha foto no ranking (outras pessoas poderão ver)</span></label>
     <p class="muted" id="pEmail"></p>
     <label class="field">Seu nome no ranking<input id="pName" maxlength="20" autocomplete="nickname" placeholder="Ex.: Ronald"></label>
     <label class="field">Peso (kg), para estimar calorias<input id="pKg" type="number" inputmode="decimal" min="30" max="250" step="0.5"></label>
     <label class="field">País<select id="pCountry"></select></label>
     <label class="field">Sensibilidade da contagem<select id="pSens"><option value="alta">Alta (saltos pequenos)</option><option value="normal">Normal</option><option value="baixa">Baixa (evita contar sem pular)</option></select></label>
+    <label class="switch"><input type="checkbox" id="pRope"><span>Som da corda a cada salto</span></label>
     <label class="switch"><input type="checkbox" id="pSound"><span>Som e vibração (inclui as comemorações)</span></label>
     <label class="switch"><input type="checkbox" id="pRank"><span>Aparecer no ranking mundial</span></label>
     <button class="btn" id="install" type="button" hidden>Instalar o app</button>
@@ -83,7 +93,7 @@
       <button class="btn ghost" id="sAll" type="button">Sair de todos os aparelhos</button>
       <button class="btn ghost" id="sExport" type="button">Baixar meus dados</button>
     </details>
-    <p class="muted" id="versaoApp">Versão 7</p>
+    <p class="muted" id="versaoApp">Versão 8</p>
     <p class="muted"><a href="/estavel/">Abrir a versão estável (sem conta)</a></p>
     <details class="danger"><summary>Excluir minha conta</summary>
       <p class="muted">Apaga sua conta, seus treinos e seu lugar no ranking. Não dá para desfazer.</p>
@@ -106,6 +116,7 @@
   <div id="banner" hidden aria-live="polite"><div class="title"></div><div class="reels" aria-hidden="true"></div><div class="sub"></div></div>
   <div class="hud top-hud">
     <button class="x" id="cancel" type="button" aria-label="Sair do treino">✕</button>
+    <button class="x h" id="ajuda" type="button" aria-label="Como posicionar o celular">?</button>
     <div class="pill"><b id="hTime">00:00</b></div>
     <div class="pill"><b id="hKcal">0,0</b> kcal</div>
   </div>
@@ -117,6 +128,29 @@
   <div class="msg" id="hMsg" role="status" aria-live="polite"></div>
   <div class="hud bot-hud"><button class="btn stop" id="stop" type="button" hidden>Finalizar</button></div>
   <div class="countdown" id="cd" hidden></div>
+  <div id="dica" hidden role="dialog" aria-label="Como posicionar o celular">
+    <div class="sheet">
+      <h2>Posicione o celular</h2>
+      <svg viewBox="0 0 320 168" role="img" aria-label="Celular em pé no chão, encostado na parede, e a pessoa a cerca de 1 metro">
+        <rect x="0" y="146" width="320" height="3" fill="#2e2e2e"/>
+        <rect x="10" y="30" width="10" height="116" rx="3" fill="#2e2e2e"/>
+        <g transform="translate(46 146) rotate(-9)"><rect x="-14" y="-60" width="28" height="60" rx="6" fill="#1c1c1c" stroke="#e8c231" stroke-width="3"/><circle cx="0" cy="-51" r="3" fill="#e8c231"/></g>
+        <path d="M58 82 L226 74 M58 82 L226 118" stroke="#e8c231" stroke-width="1.5" stroke-dasharray="4 5" opacity=".55" fill="none"/>
+        <circle cx="262" cy="62" r="15" fill="#f5f0e8"/>
+        <path d="M232 128 Q232 88 262 86 Q292 88 292 128 L292 146 L232 146 Z" fill="#f5f0e8"/>
+        <path d="M70 160 H222" stroke="#d4511a" stroke-width="2.5" stroke-dasharray="6 5"/>
+        <path d="M70 154 L62 160 L70 166 Z M222 154 L230 160 L222 166 Z" fill="#d4511a"/>
+        <text x="146" y="155" text-anchor="middle" font-size="13" font-weight="700" fill="#f5f0e8">cerca de 1 metro</text>
+      </svg>
+      <ol>
+        <li>Apoie o celular <b>em pé no chão</b>, encostado numa parede ou móvel, com a <b>câmera da frente</b> virada para você.</li>
+        <li>Fique a cerca de <b>1 metro</b> (dois passos).</li>
+        <li>Encaixe <b>cabeça e ombros</b> no contorno tracejado.</li>
+        <li>Use boa luz e deixe espaço livre para saltar.</li>
+      </ol>
+      <button class="btn" id="dicaOk" type="button">Entendi</button>
+    </div>
+  </div>
 </div>
 
 <div id="result" hidden>

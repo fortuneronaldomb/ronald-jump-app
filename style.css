@@ -77,3 +77,50 @@ h1{font:900 clamp(40px,12vw,56px)/.95 var(--disp);text-transform:uppercase;margi
 #toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--bone);color:var(--ink);padding:12px 18px;border-radius:12px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:60;max-width:90%}
 #toast.on{opacity:1;transform:translateX(-50%)}
 @media(prefers-reduced-motion:reduce){.ring,.count.pop{animation:none}#toast{transition:none}}
+
+#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
+#banner{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) scale(.6);z-index:4;text-align:center;pointer-events:none;opacity:0;padding:18px 26px 14px;border-radius:22px;background:linear-gradient(#1c1c1ce6,#0a0a0aee);border:4px solid var(--yellow);box-shadow:0 0 0 3px #000,0 0 40px var(--orange);transition:transform .35s cubic-bezier(.2,1.4,.4,1),opacity .3s;max-width:92vw}
+#banner.show{opacity:1;transform:translate(-50%,-50%) scale(1);animation:luz .5s steps(2,jump-none) infinite}
+#banner.t2{border-color:var(--orange);box-shadow:0 0 0 3px #000,0 0 60px var(--yellow)}
+#banner.t3{border-color:var(--teal);box-shadow:0 0 0 3px #000,0 0 80px var(--teal),0 0 40px var(--yellow)}
+@keyframes luz{0%{filter:brightness(1)}100%{filter:brightness(1.35)}}
+#banner .title{font:900 clamp(30px,10vw,48px)/1 var(--disp);text-transform:uppercase;letter-spacing:.06em;color:var(--yellow);text-shadow:0 2px 0 #7a5a00}
+#banner.t3 .title{color:var(--teal);text-shadow:0 2px 0 #045a62}
+#banner .reels{display:flex;justify-content:center;gap:8px;margin:12px 0 8px;font-size:clamp(54px,18vw,92px)}
+.reel{height:1em;width:.72em;overflow:hidden;background:#000;border:3px solid var(--yellow);border-radius:12px;box-shadow:inset 0 0 14px #000}
+.strip{display:block;line-height:1;transform:translateY(0)}
+.strip span{display:block;height:1em;line-height:1;font:900 1em/1 var(--disp);color:var(--bone);text-align:center}
+#banner .sub{font-size:15px;color:var(--bone)}
+.atab{flex:1;border:0;background:var(--char);border-radius:12px;padding:12px;font-weight:700;cursor:pointer;color:var(--muted)}.atab.on{background:var(--yellow);color:var(--ink)}
+#auth{position:fixed;inset:0;z-index:70;background:var(--ink);overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 20px) 20px calc(30px + env(safe-area-inset-bottom,0px))}
+#auth .card{max-width:420px;margin:0 auto;text-align:center}
+#auth h1{margin:8px 0 18px}
+#auth .tabs{margin-bottom:6px}
+#auth form{text-align:left}
+#auth .switch{font-size:14px;color:var(--muted)}
+#auth.login .reg{display:none}
+.err{color:#ff8a65;font-weight:700;min-height:1.5em;margin:10px 0 0;text-align:center}
+a{color:var(--yellow)}
+details.danger{margin:22px 0 0;border:1px solid var(--mid);border-radius:14px;padding:12px 14px}
+details.danger summary{cursor:pointer;color:#ff8a65;font-weight:700}
+@media(prefers-reduced-motion:reduce){#banner.show{animation:none}.strip{transition:none!important}}
+details.sec summary{color:var(--yellow)}
+
+/* avatar (foto de perfil) */
+.avatar{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--mid);color:var(--yellow);font:900 18px/1 var(--disp);flex:none;font-style:normal}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.top .avatar{margin-left:auto}
+.avatar.big{width:96px;height:96px;font-size:44px;border:3px solid var(--yellow)}
+.foto{display:flex;align-items:center;gap:16px;margin:4px 0 8px}
+.fotoBtns{display:flex;flex-direction:column;gap:8px;flex:1}
+.btn.small{padding:12px 16px;margin-top:0;font-size:15px}
+.rank li .avatar{width:34px;height:34px;font-size:16px}
+/* ajuda e tutorial de posição no treino */
+.x.h{margin-right:0;font:900 22px/1 var(--disp)}
+.top-hud .x{margin-right:0}.top-hud .x:first-child{margin-right:auto}
+#dica{position:absolute;left:0;right:0;bottom:0;z-index:6;background:linear-gradient(#0000,#000d 14%,#000f);padding:40px 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
+#dica .sheet{max-width:440px;margin:0 auto;background:#141414f2;border:1px solid var(--mid);border-radius:22px;padding:16px 18px 14px}
+#dica h2{font:900 28px/1 var(--disp);text-transform:uppercase;color:var(--yellow);margin:0 0 6px}
+#dica svg{display:block;width:100%;height:auto;max-height:150px;margin:2px 0 6px}
+#dica ol{margin:6px 0 4px;padding-left:20px;font-size:15px;color:#e6e0d4}#dica li{margin:5px 0}
+#dica .btn{margin-top:10px}

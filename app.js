@@ -1,3 +1,5 @@
+/* ARQUIVO GERADO por "npm run build". Não edite aqui: edite os arquivos em src/. */
+
 // src/jump-counter.js
 var JumpCounter = class {
   constructor({ up = 0.05, down = 0.02, minGap = 230 } = {}) {
@@ -251,6 +253,64 @@ function celebrate(n, { actx: actx2 = null, vibrate = false } = {}) {
   if (vibrate && navigator.vibrate) navigator.vibrate(tier === 1 ? [40, 40, 40] : [60, 40, 60, 40, 140]);
 }
 
+// src/rope-sound.js
+var ruido = null;
+function bufferRuido(a) {
+  if (ruido && ruido.sampleRate === a.sampleRate) return ruido;
+  const n = Math.floor(a.sampleRate * 0.5), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  return ruido = b;
+}
+function vento(a, quando, dur, vol) {
+  const s = a.createBufferSource();
+  s.buffer = bufferRuido(a);
+  const f = a.createBiquadFilter();
+  f.type = "bandpass";
+  f.Q.value = 1.1;
+  f.frequency.setValueAtTime(500, quando);
+  f.frequency.exponentialRampToValueAtTime(2600, quando + dur);
+  const g = a.createGain();
+  g.gain.setValueAtTime(1e-4, quando);
+  g.gain.exponentialRampToValueAtTime(vol, quando + dur * 0.35);
+  g.gain.exponentialRampToValueAtTime(1e-4, quando + dur);
+  s.connect(f);
+  f.connect(g);
+  g.connect(a.destination);
+  s.start(quando);
+  s.stop(quando + dur + 0.02);
+}
+function batida(a, quando, vol) {
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = "sine";
+  o.frequency.setValueAtTime(170, quando);
+  o.frequency.exponentialRampToValueAtTime(55, quando + 0.07);
+  g.gain.setValueAtTime(vol, quando);
+  g.gain.exponentialRampToValueAtTime(1e-4, quando + 0.09);
+  o.connect(g);
+  g.connect(a.destination);
+  o.start(quando);
+  o.stop(quando + 0.1);
+  const s = a.createBufferSource();
+  s.buffer = bufferRuido(a);
+  const h = a.createBiquadFilter();
+  h.type = "highpass";
+  h.frequency.value = 2500;
+  const g2 = a.createGain();
+  g2.gain.setValueAtTime(vol * 0.5, quando);
+  g2.gain.exponentialRampToValueAtTime(1e-4, quando + 0.025);
+  s.connect(h);
+  h.connect(g2);
+  g2.connect(a.destination);
+  s.start(quando);
+  s.stop(quando + 0.03);
+}
+function somCorda(a, periodoMs = 500, volume = 1) {
+  if (!a) return;
+  const t = a.currentTime, p = Math.min(1200, Math.max(250, periodoMs)) / 1e3;
+  batida(a, t, 0.22 * volume);
+  vento(a, t + Math.min(0.3, p * 0.4), Math.min(0.26, p * 0.45), 0.12 * volume);
+}
+
 // src/app.js
 var NADA = new Proxy(function() {
 }, { get: (t, k) => k === "style" || k === "dataset" ? {} : k === "classList" ? { add() {
@@ -258,7 +318,7 @@ var NADA = new Proxy(function() {
 }, toggle() {
 }, contains: () => false } : k === Symbol.toPrimitive ? () => "" : NADA, set: () => true, apply: () => NADA });
 var $ = (id) => document.getElementById(id) || NADA;
-var VERSAO = 7;
+var VERSAO = 8;
 (async () => {
   const meta = Number(document.querySelector('meta[name="rj-versao"]')?.content || 0);
   try {
@@ -304,7 +364,7 @@ var dayKey = (d) => {
   const x = new Date(d);
   return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
 };
-var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
+var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
 var saveProfile = () => store.set("rj.profile", profile);
 saveProfile();
 var history = store.get("rj.hist", []);
@@ -422,6 +482,9 @@ document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () 
   loadRank();
 }));
 var esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+function avatarHtml(nome, src) {
+  return src ? `<img src="${src}" alt="">` : `<span>${esc(String(nome || "?").trim().charAt(0).toUpperCase() || "?")}</span>`;
+}
 async function loadRank() {
   $("rankMsg").textContent = "Carregando\u2026";
   try {
@@ -429,7 +492,7 @@ async function loadRank() {
     if (!r.ok) throw 0;
     const d = await r.json();
     $("rankMsg").textContent = d.users.length ? "" : "Ningu\xE9m no ranking ainda. Fa\xE7a um treino e seja o primeiro.";
-    $("rankUsers").innerHTML = d.users.map((u) => `<li class="${u.name === profile.name && u.country === profile.country ? "me" : ""}"><span>${flag(u.country)} ${esc(u.name)}</span><b>${num(u.jumps)}</b></li>`).join("");
+    $("rankUsers").innerHTML = d.users.map((u) => `<li class="${u.name === profile.name && u.country === profile.country ? "me" : ""}"><i class="avatar">${avatarHtml(u.name, u.pid ? API + "/api/foto/" + u.pid + "?v=" + (u.fv || 0) : "")}</i><span>${flag(u.country)} ${esc(u.name)}</span><b>${num(u.jumps)}</b></li>`).join("");
     $("rankCountries").innerHTML = d.countries.map((c) => `<li><span>${flag(c.country)} ${esc(PAISES[c.country] || c.country)}</span><b>${num(c.jumps)}</b></li>`).join("");
   } catch {
     $("rankMsg").textContent = "Sem conex\xE3o com o ranking. Confira a internet e abra a aba de novo.";
@@ -442,6 +505,7 @@ function renderProfile() {
   $("pSens").value = profile.sens;
   $("pRank").checked = profile.rank;
   $("ropeToggle").checked = profile.rope;
+  $("pRope").checked = profile.ropeSound;
   $("pCountry").innerHTML = Object.entries(PAISES).map(([c, n]) => `<option value="${c}">${flag(c)} ${n}</option>`).join("");
   $("pCountry").value = profile.country;
 }
@@ -484,6 +548,101 @@ $("pRank").addEventListener("change", (e) => {
 $("ropeToggle").addEventListener("change", (e) => {
   profile.rope = e.target.checked;
   saveProfile();
+});
+$("pRope").addEventListener("change", (e) => {
+  profile.ropeSound = e.target.checked;
+  saveProfile();
+  if (e.target.checked) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      actx.resume && actx.resume();
+      somCorda(actx, 500);
+    } catch {
+    }
+  }
+});
+var minhaFotoUrl = "";
+function pintaAvatar(el, nome, src) {
+  el.innerHTML = avatarHtml(nome, src);
+}
+function atualizarAvatares() {
+  pintaAvatar($("pFotoImg"), profile.name, minhaFotoUrl);
+  pintaAvatar($("hAvatar"), profile.name, minhaFotoUrl);
+  $("pFotoRem").hidden = !minhaFotoUrl;
+  $("pFotoRankLbl").hidden = !minhaFotoUrl;
+  $("pFotoRank").checked = !!(user && user.fotoRanking);
+  $("pFotoBtn").textContent = minhaFotoUrl ? "Trocar foto" : "Escolher foto";
+}
+async function carregarMinhaFoto() {
+  if (minhaFotoUrl) {
+    try {
+      URL.revokeObjectURL(minhaFotoUrl);
+    } catch {
+    }
+    minhaFotoUrl = "";
+  }
+  if (token && user && user.foto) {
+    try {
+      const r = await fetch(API + "/api/foto", { headers: { Authorization: "Bearer " + token } });
+      if (r.ok) minhaFotoUrl = URL.createObjectURL(await r.blob());
+    } catch {
+    }
+  }
+  atualizarAvatares();
+}
+async function fotoParaJpeg(arquivo) {
+  const img = window.createImageBitmap ? await createImageBitmap(arquivo) : await new Promise((ok, no) => {
+    const i = new Image();
+    i.onload = () => ok(i);
+    i.onerror = no;
+    i.src = URL.createObjectURL(arquivo);
+  });
+  const w = img.width || img.naturalWidth, h = img.height || img.naturalHeight, lado = Math.min(w, h);
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  c.getContext("2d").drawImage(img, (w - lado) / 2, (h - lado) / 2, lado, lado, 0, 0, 256, 256);
+  for (const q of [0.85, 0.75, 0.65, 0.5, 0.4]) {
+    const url = c.toDataURL("image/jpeg", q);
+    if (url.length * 0.75 < 9e4) return url;
+  }
+  throw new Error("grande");
+}
+$("pFotoBtn").addEventListener("click", () => $("pFotoInput").click());
+$("pFotoInput").addEventListener("change", async (e) => {
+  const arq = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!arq) return;
+  if (!/^image\//.test(arq.type)) return toast("Escolha uma imagem.");
+  try {
+    const foto = await fotoParaJpeg(arq);
+    const r = await api("/api/foto", { method: "PUT", body: { foto } });
+    if (!r.ok) return toast(r.d.erro || "N\xE3o foi poss\xEDvel salvar a foto.");
+    user = r.d.user;
+    store.set("rj.user", user);
+    await carregarMinhaFoto();
+    toast("Foto atualizada.");
+  } catch {
+    toast("N\xE3o consegui usar essa foto. Tente outra.");
+  }
+});
+$("pFotoRem").addEventListener("click", async () => {
+  const r = await api("/api/foto", { method: "DELETE" }).catch(() => null);
+  if (r && r.ok) {
+    user = r.d.user;
+    store.set("rj.user", user);
+    await carregarMinhaFoto();
+    toast("Foto removida.");
+  } else toast("N\xE3o foi poss\xEDvel remover agora.");
+});
+$("pFotoRank").addEventListener("change", async (e) => {
+  const r = await api("/api/me", { method: "PATCH", body: { fotoRanking: e.target.checked } }).catch(() => null);
+  if (r && r.ok) {
+    user = r.d.user;
+    store.set("rj.user", user);
+  } else {
+    e.target.checked = !e.target.checked;
+    toast("N\xE3o foi poss\xEDvel salvar agora.");
+  }
 });
 var deferred = null;
 addEventListener("beforeinstallprompt", (e) => {
@@ -544,6 +703,11 @@ async function loadModel(onStatus) {
     loading = null;
   }
 }
+var SW_MIN = 0.2;
+var SW_RUN_MIN = 0.15;
+var SW_MAX = 0.62;
+var SW_IDEAL = 0.3;
+var dicaAberta = false;
 var W = { running: false, raf: 0, stream: null, lock: null };
 var video = document.createElement("video");
 video.playsInline = true;
@@ -584,6 +748,11 @@ async function startWorkout() {
     W.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
     video.srcObject = W.stream;
     await video.play();
+    if (profile.dicas < 2) {
+      profile.dicas++;
+      saveProfile();
+      abrirDica(true);
+    }
   } catch (e) {
     endWorkout(true);
     toast(e && e.name === "NotAllowedError" ? "Permita o uso da c\xE2mera nas configura\xE7\xF5es do navegador e tente de novo." : "N\xE3o consegui abrir a c\xE2mera neste aparelho.");
@@ -639,7 +808,9 @@ async function startWorkout() {
     const shOk = !!lm && [L.ls, L.rs].every((i) => vis(lm, i) > 0.5);
     const hipOk = !!lm && [L.lh, L.rh].every((i) => vis(lm, i) > 0.5);
     const sw = shOk ? Math.hypot((lm[L.ls].x - lm[L.rs].x) * vw, (lm[L.ls].y - lm[L.rs].y) * vh) / vh : 0;
-    const torsoOk = shOk && sw > 0.07;
+    const longe = shOk && sw < (phase === "run" ? SW_RUN_MIN : SW_MIN);
+    const perto = shOk && sw > SW_MAX;
+    const torsoOk = shOk && !longe && (phase === "run" || !perto);
     if (torsoOk) {
       const want = hipOk ? "tronco" : "ombros";
       if (phase !== "run") {
@@ -656,12 +827,15 @@ async function startWorkout() {
       lastSeen = now;
     }
     if (phase === "position") {
-      if (torsoOk) {
+      if (dicaAberta) {
+        okSince = 0;
+        msg("");
+      } else if (torsoOk) {
         if (!okSince) okSince = now;
-        msg(hipOk ? "Isso! Fique parado por um instante\u2026" : "Modo perto: pode saltar! Fique parado por um instante\u2026");
+        msg("Isso! Fique parado por um instante\u2026");
       } else {
         okSince = 0;
-        msg(!lm ? "Procurando voc\xEA\u2026 fique de frente para a c\xE2mera" : shOk ? "Chegue um pouco mais perto" : "Mostre a cabe\xE7a e os ombros para a c\xE2mera");
+        msg(!lm ? "Procurando voc\xEA\u2026 fique de frente para a c\xE2mera" : longe ? "Chegue mais perto: encha o contorno com cabe\xE7a e ombros" : perto ? "Afaste s\xF3 um pouquinho" : "Mostre a cabe\xE7a e os ombros para a c\xE2mera");
       }
       if (okSince && now - okSince > 1200) {
         phase = "count";
@@ -699,7 +873,7 @@ async function startWorkout() {
         active += (now - lastTick) / 1e3;
       } else if (!paused) {
         paused = true;
-        msg("Pausado. Volte para o enquadramento para continuar.");
+        msg("Pausado. Chegue mais perto e volte ao enquadramento.");
       }
       lastTick = now;
       let y = 0, scale = 0;
@@ -718,7 +892,8 @@ async function startWorkout() {
         const r = counter.update(y, scale, now);
         if (r.jumped) {
           lastJumpAt = now;
-          beep(880, 45);
+          if (profile.ropeSound) somCorda(actx, counter.period);
+          else beep(880, 45);
           buzz(12);
           if (counter.count % 50 === 0) celebrate(counter.count, { actx: profile.sound ? actx : null, vibrate: profile.sound });
           $("hCount").textContent = counter.count;
@@ -743,6 +918,7 @@ async function startWorkout() {
       }
       W.end = { jumps: counter.count, secs: Math.round(active) };
     }
+    if (phase === "position" && !dicaAberta) guia(cw, ch, SW_IDEAL * vh * sc, torsoOk);
     if (lm && torsoOk) {
       ctx.fillStyle = "rgba(232,194,49,.85)";
       for (const i of hipOk ? [L.ls, L.rs, L.lh, L.rh] : [L.ls, L.rs]) {
@@ -756,6 +932,23 @@ async function startWorkout() {
     ctx.restore();
   };
   loop();
+}
+function guia(cw, ch, swPx, ok) {
+  const cx = cw / 2, ys = ch * 0.58, r = swPx * 0.26, yc = ys - swPx * 0.5;
+  ctx.save();
+  ctx.setLineDash([12, 10]);
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = ok ? "#5be37d" : "#e8c231";
+  ctx.shadowColor = "#0009";
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.arc(cx, yc, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(cx, ys + swPx * 0.42, swPx / 2, swPx * 0.5, 0, Math.PI, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 }
 function drawRope(P, lm, now, counter, lastJumpAt, swPx) {
   const [lsx, lsy] = P(L.ls), [rsx, rsy] = P(L.rs);
@@ -791,7 +984,14 @@ function drawRope(P, lm, now, counter, lastJumpAt, swPx) {
     ctx.fill();
   }
 }
+function abrirDica(sim) {
+  dicaAberta = !!sim;
+  $("dica").hidden = !sim;
+}
+$("dicaOk").addEventListener("click", () => abrirDica(false));
+$("ajuda").addEventListener("click", () => abrirDica(true));
 function endWorkout(silent) {
+  abrirDica(false);
   W.running = false;
   cancelAnimationFrame(W.raf);
   if (W.stream) W.stream.getTracks().forEach((t) => t.stop());
@@ -981,6 +1181,7 @@ function aplicarUsuario(u) {
   saveProfile();
   $("pEmail").textContent = u.email;
   renderProfile();
+  carregarMinhaFoto();
 }
 async function iniciar() {
   if (!token) return irParaEntrar();

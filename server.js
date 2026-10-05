@@ -10,6 +10,8 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUB = path.join(ROOT, 'public');
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const PORT = process.env.PORT || 3000;
+const FLAT = !fs.existsSync(PUB); // sem pasta public/ = modo "plano" (upload sem pastas no site do GitHub)
+const VERSAO_APP = 8;
 const MODEL_FILE = path.join(PUB, 'model', 'pose_landmarker_lite.task');
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
 
@@ -24,13 +26,15 @@ async function ensureModel() {
     console.log('Modelo de pose baixado.');
   } catch (e) { console.warn('Não consegui baixar o modelo agora (o app tentará direto do Google):', e.message); }
 }
-ensureModel();
+if (!process.env.SKIP_MODEL) ensureModel();
 
 // ---- dados (arquivos JSON em DATA_DIR). Em produção use um volume ou, melhor, um banco (Postgres/Supabase).
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const load = (n, d) => { try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, n), 'utf8')); } catch { return d; } };
 const timers = {};
 const persist = (n, get) => { clearTimeout(timers[n]); timers[n] = setTimeout(() => fs.writeFile(path.join(DATA_DIR, n), JSON.stringify(get()), { mode: 0o600 }, () => {}), 1200); };
+const FOTOS = path.join(DATA_DIR, 'fotos'); fs.mkdirSync(FOTOS, { recursive: true });
+const arqFoto = u => path.join(FOTOS, u.id + '.jpg');
 let scores = load('scores.json', []);   // {id: userId, secs, jumps, ts, pub}
 let users = load('users.json', []);     // {id,email,name,country,kg,salt,hash,created}
 let sessions = load('sessions.json', {}); // sha256(token) -> {uid, exp}
@@ -70,7 +74,8 @@ function seguranca(res, https) {
   if (https) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 }
 
-const pub = u => ({ id: u.id, email: u.email, name: u.name, country: u.country, kg: u.kg });
+const pidDe = u => sha('pid:' + u.id).slice(0, 16); // identificador público (não revela o id interno)
+const pub = u => ({ id: u.id, email: u.email, name: u.name, country: u.country, kg: u.kg, pid: pidDe(u), foto: !!u.foto, fotoV: u.fotoV || 0, fotoRanking: !!u.fotoRanking });
 function authUser(req) {
   const m = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization || '');
   if (!m) return null;
@@ -104,7 +109,7 @@ function ranking(period) {
   for (const s of scores) {
     const u = byId.get(s.id);
     if (!u || s.pub === false || s.ts < since) continue;
-    const r = per.get(u.id) || { name: u.name, country: u.country, jumps: 0, secs: 0 };
+    const r = per.get(u.id) || { name: u.name, country: u.country, jumps: 0, secs: 0, ...(u.foto && u.fotoRanking ? { pid: pidDe(u), fv: u.fotoV || 0 } : {}) };
     r.jumps += s.jumps; r.secs += s.secs; per.set(u.id, r);
     countries.set(u.country, (countries.get(u.country) || 0) + s.jumps);
   }
@@ -118,9 +123,9 @@ function json(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(obj));
 }
-function readBody(req) {
+function readBody(req, max = 4096) {
   return new Promise((ok, no) => {
-    let b = ''; req.on('data', c => { b += c; if (b.length > 4096) { no(new Error('grande')); req.destroy(); } });
+    let b = ''; req.on('data', c => { b += c; if (b.length > max) { no(new Error('grande')); req.destroy(); } });
     req.on('end', () => { try { ok(JSON.parse(b || '{}')); } catch (e) { no(e); } });
   });
 }
@@ -128,6 +133,15 @@ function readBody(req) {
 async function api(req, res, url, ip) {
   const p = url.pathname, m = req.method;
   if (p === '/api/ranking' && m === 'GET') return json(res, 200, ranking(url.searchParams.get('period') === 'all' ? 'all' : 'week'));
+
+  if (p.startsWith('/api/foto/') && m === 'GET') { // foto só aparece para outras pessoas se o dono ativou "mostrar no ranking"
+    const dono = users.find(x => pidDe(x) === p.slice(10));
+    if (!dono || !dono.foto || !dono.fotoRanking) return json(res, 404, { erro: 'Não encontrado' });
+    return fs.readFile(arqFoto(dono), (e, buf) => {
+      if (e) return json(res, 404, { erro: 'Não encontrado' });
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=3600' }); res.end(buf);
+    });
+  }
 
   if (p === '/api/register' && m === 'POST') {
     if (limited('reg:' + ip, 10, 36e5)) return json(res, 429, { erro: 'Muitas tentativas. Tente mais tarde.' });
@@ -165,17 +179,41 @@ async function api(req, res, url, ip) {
   if (p === '/api/me' && m === 'PATCH') {
     const b = await readBody(req), merged = { name: b.name ?? u.name, country: b.country ?? u.country, kg: b.kg ?? u.kg };
     const bad = okProfile(merged); if (bad) return json(res, 400, { erro: bad });
-    u.name = clean(merged.name, 20); u.country = clean(merged.country, 2).toUpperCase(); u.kg = +merged.kg; saveUsers();
+    u.name = clean(merged.name, 20); u.country = clean(merged.country, 2).toUpperCase(); u.kg = +merged.kg;
+    if (typeof b.fotoRanking === 'boolean') u.fotoRanking = b.fotoRanking && !!u.foto;
+    saveUsers();
     return json(res, 200, { user: pub(u) });
   }
   if (p === '/api/account' && m === 'DELETE') {
     const b = await readBody(req);
     if (limited('del:' + u.id, 5, 36e5)) return json(res, 429, { erro: 'Muitas tentativas.' });
     if (!(await checkPw(u, b.password))) return json(res, 401, { erro: 'Senha incorreta.' });
+    try { fs.unlinkSync(arqFoto(u)); } catch {}
     users = users.filter(x => x.id !== u.id); scores = scores.filter(s => s.id !== u.id);
     for (const k in sessions) if (sessions[k].uid === u.id) delete sessions[k];
     saveUsers(); saveScores(); saveSessions(); log('delete_account', ip);
     return json(res, 200, { ok: true });
+  }
+  if (p === '/api/foto' && m === 'GET') { // a própria foto (precisa do token, por isso o app a baixa por aqui)
+    return fs.readFile(u.foto ? arqFoto(u) : '/nada', (e, buf) => {
+      if (e) return json(res, 404, { erro: 'Sem foto' });
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': buf.length, 'Cache-Control': 'no-store' }); res.end(buf);
+    });
+  }
+  if (p === '/api/foto' && m === 'PUT') {
+    if (limited('foto:' + u.id, 10, 36e5)) return json(res, 429, { erro: 'Muitas trocas de foto. Tente mais tarde.' });
+    const b = await readBody(req, 140000), m2 = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.foto || ''));
+    if (!m2) return json(res, 400, { erro: 'Envie uma imagem JPEG.' });
+    const buf = Buffer.from(m2[1], 'base64');
+    if (buf.length < 200 || buf.length > 100000) return json(res, 400, { erro: 'A foto deve ter no máximo 100 KB.' });
+    if (!(buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)) return json(res, 400, { erro: 'Arquivo de imagem inválido.' });
+    fs.writeFileSync(arqFoto(u), buf, { mode: 0o600 }); u.foto = true; u.fotoV = Date.now(); saveUsers(); log('foto_atualizada', ip);
+    return json(res, 200, { user: pub(u) });
+  }
+  if (p === '/api/foto' && m === 'DELETE') {
+    try { fs.unlinkSync(arqFoto(u)); } catch {}
+    u.foto = false; u.fotoV = 0; u.fotoRanking = false; saveUsers();
+    return json(res, 200, { user: pub(u) });
   }
   if (p === '/api/logout-all' && m === 'POST') {
     for (const k in sessions) if (sessions[k].uid === u.id) delete sessions[k];
@@ -193,8 +231,9 @@ async function api(req, res, url, ip) {
   }
   if (p === '/api/export' && m === 'GET') {
     const workouts = scores.filter(s => s.id === u.id).sort((a, b) => b.ts - a.ts).map(s => ({ data: new Date(s.ts).toISOString(), saltos: s.jumps, segundos: s.secs, noRanking: s.pub !== false }));
+    let foto = null; try { if (u.foto) foto = 'data:image/jpeg;base64,' + fs.readFileSync(arqFoto(u)).toString('base64'); } catch {}
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="meus-dados-ronald-jump.json"', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify({ geradoEm: new Date().toISOString(), conta: { email: u.email, nome: u.name, pais: u.country, pesoKg: u.kg, criadaEm: new Date(u.created).toISOString() }, treinos: workouts }, null, 2));
+    return res.end(JSON.stringify({ geradoEm: new Date().toISOString(), conta: { email: u.email, nome: u.name, pais: u.country, pesoKg: u.kg, criadaEm: new Date(u.created).toISOString(), fotoVisivelNoRanking: !!u.fotoRanking }, foto, treinos: workouts }, null, 2));
   }
   if (p === '/api/score' && m === 'POST') {
     if (limited('score:' + u.id, 60, 36e5)) return json(res, 429, { erro: 'Muitos envios. Tente mais tarde.' });
@@ -226,28 +265,28 @@ const srv = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
-    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: 7, hora: new Date().toISOString() });
+    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: VERSAO_APP, hora: new Date().toISOString() });
     if (limited('api:' + ip, 300, 6e4)) return json(res, 429, { erro: 'Muitas requisições. Aguarde um instante.' });
     try { return await api(req, res, url, ip); }
     catch (e) { return json(res, e && e.message === 'grande' ? 413 : 400, { erro: 'Requisição inválida.' }); }
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { erro: 'Método não permitido' });
   let p = decodeURIComponent(url.pathname);
-  // Versão estável (sem conta) em /estavel/: os arquivos dela ficam soltos com o prefixo "estavel-"
   if (p === '/entrar') p = '/entrar.html';
-  else if (p === '/estavel' || p.startsWith('/estavel/')) p = '/estavel-' + (p.slice(9).replace(/^\//, '') || 'index.html');
-  else if (p.endsWith('/')) p += 'index.html';
+  if (p === '/estavel') p = '/estavel/';
+  if (p.endsWith('/')) p += 'index.html';
   const file = path.normalize(path.join(PUB, p));
   if (!file.startsWith(PUB)) return json(res, 403, { erro: 'Proibido' });
-  // Aceita os arquivos tanto em public/... quanto soltos na raiz do projeto (upload sem pastas)
   const base = path.basename(p);
-  const alt = path.join(ROOT, base);
-  const PRIVADOS = new Set(['server.js', 'package.json', 'package-lock.json', 'readme.md', 'scores.json']);
+  const PRIVADOS = new Set(['server.js', 'package.json', 'package-lock.json', 'readme.md', 'scores.json', 'users.json', 'sessions.json']);
   const candidates = [file];
-  if (!base.startsWith('.') && !PRIVADOS.has(base.toLowerCase())) candidates.push(alt);
+  if (FLAT && !base.startsWith('.') && !PRIVADOS.has(base.toLowerCase())) { // modo plano: arquivos soltos na raiz; a versão estável usa o prefixo estavel-
+    if (p.startsWith('/estavel/')) candidates.push(path.join(ROOT, 'estavel-' + p.slice(9)));
+    candidates.push(path.join(ROOT, base));
+  }
   const send = (f, st) => {
-    const shell = /index\.html$|sw\.js$|app\.js$|style\.css$|jump-counter\.js$|manifest/.test(f);
-    res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream', 'Content-Length': st.size, 'Cache-Control': shell ? 'no-cache' : 'public, max-age=604800' });
+    const longo = /^\/(vendor|icons|model)\//.test(p); // só bibliotecas, ícones e modelo ficam em cache longo; o resto sempre confere versão nova
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream', 'Content-Length': st.size, 'Cache-Control': longo ? 'public, max-age=604800' : 'no-cache' });
     if (req.method === 'HEAD') return res.end();
     fs.createReadStream(f).pipe(res);
   };

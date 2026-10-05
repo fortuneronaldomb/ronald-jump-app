@@ -56,24 +56,46 @@
       .then(function () { $('go').disabled = false; $('go').textContent = modo === 'login' ? 'Entrar' : 'Criar conta'; });
   });
 
-  // instalar como app
+  // ---- instalar como app (a partir do navegador)
+  var ua = navigator.userAgent;
+  var ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var android = /android/i.test(ua), movel = ios || android;
+  var dentroDeApp = /Instagram|FBAN|FBAV|FB_IAB|Snapchat|TikTok|MicroMessenger|Line\//i.test(ua);
+  var safari = ios && /safari/i.test(ua) && !/crios|fxios|edgios|opios|gsa\//i.test(ua);
   var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
-  var ios = /iphone|ipad|ipod/i.test(navigator.userAgent), android = /android/i.test(navigator.userAgent), movel = ios || android;
-  var promptInstalar = null;
-  if (!standalone && movel) {
-    $('instalar').hidden = false;
-    if (ios) $('iIos').hidden = false; else $('iOutro').hidden = false;
+  var promptInstalar = null, link = location.origin + '/entrar.html';
+  var dispensado = false; try { dispensado = sessionStorage.getItem('rj.ctaFechado') === '1'; } catch (e) {}
+
+  function guia(titulo, passos, copiar) {
+    $('guiaTit').textContent = titulo; var ol = $('guiaPassos'); ol.innerHTML = '';
+    passos.forEach(function (p) { var li = document.createElement('li'); li.innerHTML = p; ol.appendChild(li); });
+    $('copiar').hidden = !copiar; $('guia').hidden = false;
+    try { $('guia').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
   }
-  window.addEventListener('beforeinstallprompt', function (e) {
-    e.preventDefault(); promptInstalar = e;
-    if (standalone) return;
-    $('instalar').hidden = false; $('iAndroid').hidden = false; $('iOutro').hidden = true;
+  function copiarLink(btn) {
+    var ok = function () { btn.textContent = 'Link copiado!'; };
+    try { navigator.clipboard.writeText(link).then(ok, function () { prompt('Copie o link:', link); }); } catch (e) { prompt('Copie o link:', link); }
+  }
+  $('copiar').addEventListener('click', function () { copiarLink($('copiar')); });
+  $('copiarAviso').addEventListener('click', function () { copiarLink($('copiarAviso')); });
+
+  if (movel && !standalone) {
+    if (dentroDeApp) $('avisoApp').hidden = false;
+    if (!dispensado) $('cta').hidden = false;
+  }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); promptInstalar = e; });
+  $('btnApp').addEventListener('click', function () {
+    if (promptInstalar) { promptInstalar.prompt(); promptInstalar.userChoice.then(function () { promptInstalar = null; }); return; }
+    if (ios) {
+      if (dentroDeApp) return guia('Abra no navegador', ['Toque em <b>⋯</b> (ou <b>⋮</b>) no canto da tela.', 'Escolha <b>Abrir no Safari</b> (ou <b>Abrir no navegador</b>).', 'Lá, toque em <b>Transformar em app</b> de novo.'], true);
+      try { if (navigator.share) navigator.share({ title: 'Ronald Jump', text: 'Instale o Ronald Jump', url: link }).catch(function () {}); } catch (e) {}
+      return guia('Transformar em app (iPhone)', ['Na folha que abriu, role e toque em <b>Adicionar à Tela de Início</b>.', 'Confirme em <b>Adicionar</b>.', 'Abra o <b>Ronald Jump</b> pelo ícone e entre com sua conta.', safari ? '' : 'Se não aparecer a opção, abra este link no <b>Safari</b>.'].filter(Boolean), !safari);
+    }
+    if (dentroDeApp) return guia('Abra no navegador', ['Toque em <b>⋮</b> no canto da tela.', 'Escolha <b>Abrir no Chrome</b> (ou <b>Abrir no navegador</b>).', 'Lá, toque em <b>Transformar em app</b> de novo.'], true);
+    guia('Transformar em app (Android)', ['Toque no menu <b>⋮</b> do Chrome.', 'Escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.', 'Abra o <b>Ronald Jump</b> pelo ícone e entre com sua conta.'], false);
   });
-  $('btnInstalar').addEventListener('click', function () {
-    if (!promptInstalar) return;
-    promptInstalar.prompt(); promptInstalar.userChoice.then(function () { promptInstalar = null; $('iAndroid').hidden = true; });
-  });
-  window.addEventListener('appinstalled', function () { $('instalar').hidden = true; });
+  $('ctaFechar').addEventListener('click', function () { $('cta').hidden = true; try { sessionStorage.setItem('rj.ctaFechado', '1'); } catch (e) {} });
+  window.addEventListener('appinstalled', function () { $('cta').hidden = true; $('guia').hidden = true; });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function () {});
   setModo('login');
 })();
