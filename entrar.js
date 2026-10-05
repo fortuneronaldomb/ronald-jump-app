@@ -97,5 +97,6 @@
   $('ctaFechar').addEventListener('click', function () { $('cta').hidden = true; try { sessionStorage.setItem('rj.ctaFechado', '1'); } catch (e) {} });
   window.addEventListener('appinstalled', function () { $('cta').hidden = true; $('guia').hidden = true; });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function () {});
+  fetch('/api/health', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (h) { if (h && h.duravel === false) $('avisoDados').hidden = false; }).catch(function () {});
   setModo('login');
 })();

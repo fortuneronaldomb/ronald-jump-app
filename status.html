@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Status do servidor — Ronald Jump</title><meta name="robots" content="noindex">
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}
+body{margin:0;background:#0a0a0a;color:#f5f0e8;font:17px/1.55 system-ui,sans-serif}
+main{max-width:560px;margin:0 auto;padding:24px 20px 60px}
+h1{font:900 38px/1 "Arial Narrow",Impact,sans-serif;text-transform:uppercase;margin:0 0 6px}
+.card{border-radius:18px;padding:18px;margin:16px 0;border:2px solid #2e2e2e;background:#1c1c1c}
+.card.ok{border-color:#5be37d;background:#102416}.card.ruim{border-color:#ff6b4a;background:#2a120c}.card.aviso{border-color:#e8c231;background:#2a2410}
+.card b.t{display:block;font-size:22px;margin-bottom:6px}
+ol{padding-left:22px}li{margin:6px 0}
+table{width:100%;border-collapse:collapse;font-size:14px;color:#cfc9bd}td{padding:6px 0;border-top:1px solid #2e2e2e;vertical-align:top}td:first-child{color:#a49f95;width:46%}
+button{width:100%;border:0;border-radius:999px;background:#e8c231;color:#0a0a0a;font:700 17px system-ui,sans-serif;padding:16px;margin-top:10px;cursor:pointer;min-height:52px}
+.muted{color:#a49f95;font-size:14px}a{color:#e8c231}
+</style>
+</head>
+<body><main>
+<h1>Status do servidor</h1>
+<p class="muted">Confere se as contas ficam guardadas ou se são apagadas a cada atualização.</p>
+<div id="resultado" class="card">Verificando…</div>
+<div id="passos" class="card" hidden></div>
+<div class="card"><table id="tabela"></table></div>
+<button id="de-novo" type="button">Verificar de novo</button>
+<p class="muted"><a href="/">Voltar ao app</a></p>
+</main>
+<script src="/status.js"></script>
+</body></html>

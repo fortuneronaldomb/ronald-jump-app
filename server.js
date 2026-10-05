@@ -10,9 +10,29 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUB = path.join(ROOT, 'public');
 // Onde ficam os dados (contas, treinos, fotos). No Railway, o Volume anexado define RAILWAY_VOLUME_MOUNT_PATH: usamos
 // essa pasta sozinhos, então não depende de lembrar de configurar DATA_DIR.
-const EM_RAILWAY = !!(process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_ENVIRONMENT_ID || process.env.RAILWAY_SERVICE_ID);
-const VOLUME = process.env.RAILWAY_VOLUME_MOUNT_PATH || '';
-const DATA_DIR = process.env.DATA_DIR || VOLUME || path.join(ROOT, 'data');
+const EM_RAILWAY = Object.keys(process.env).some(k => k.startsWith('RAILWAY_')); // qualquer variável do Railway
+// Descobre discos de verdade (volumes) montados no contêiner, mesmo que o nome da variável mude ou que o caminho não seja /data.
+function volumesMontados() {
+  try {
+    const out = [];
+    for (const linha of fs.readFileSync(process.env.RJ_MOUNTINFO || '/proc/self/mountinfo', 'utf8').split('\n')) {
+      const [pre, pos] = linha.split(' - '); if (!pos) continue;
+      const campos = pre.split(' '), ponto = (campos[4] || '').replace(/\\040/g, ' '), tipo = pos.split(' ')[0];
+      if (!ponto || ponto === '/' || /^\/(proc|sys|dev|run|etc|nix|usr|lib|lib64|bin|sbin|root|var\/run)(\/|$)/.test(ponto)) continue;
+      if (/^(overlay|proc|sysfs|tmpfs|devtmpfs|devpts|mqueue|cgroup2?|securityfs|debugfs|shm|squashfs|fuse\.lxcfs)$/.test(tipo)) continue;
+      try { if (fs.statSync(ponto).isDirectory()) out.push(ponto); } catch {}
+    }
+    return out;
+  } catch { return []; }
+}
+const MONTADOS = volumesMontados();
+const VOLUME = process.env.RAILWAY_VOLUME_MOUNT_PATH || (EM_RAILWAY ? (MONTADOS.find(m => m === '/data') || (MONTADOS.length === 1 ? MONTADOS[0] : '')) : '');
+const dentroDe = (a, b) => { const r = path.relative(path.resolve(b), path.resolve(a)); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)); };
+// No Railway, se existe um volume, os dados vão para ele, mesmo que DATA_DIR aponte para outro lugar (que seria apagado a cada publicação).
+const DATA_DIR = (EM_RAILWAY && VOLUME) ? (process.env.DATA_DIR && dentroDe(process.env.DATA_DIR, VOLUME) ? process.env.DATA_DIR : VOLUME) : (process.env.DATA_DIR || path.join(ROOT, 'data'));
+const DATA_DIR_IGNORADO = EM_RAILWAY && VOLUME && process.env.DATA_DIR && !dentroDe(process.env.DATA_DIR, VOLUME);
+let RELEASE = ''; try { RELEASE = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version || ''; } catch {}
+const NO_AR_DESDE = new Date().toISOString();
 const PORT = process.env.PORT || 3000;
 const FLAT = !fs.existsSync(PUB); // sem pasta public/ = modo "plano" (upload sem pastas no site do GitHub)
 const VERSAO_APP = 11;
@@ -39,11 +59,13 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 const MARCADOR = path.join(DATA_DIR, '.rj-marcador');
 const marcadorJaExistia = fs.existsSync(MARCADOR);
 try { if (!marcadorJaExistia) fs.writeFileSync(MARCADOR, new Date().toISOString()); } catch {}
-const noVolume = !!VOLUME && path.resolve(DATA_DIR).startsWith(path.resolve(VOLUME));
+const noVolume = !!VOLUME && dentroDe(DATA_DIR, VOLUME);
+let discoCriadoEm = ''; try { discoCriadoEm = fs.readFileSync(MARCADOR, 'utf8').trim(); } catch {}
 const DURAVEL = !EM_RAILWAY || noVolume || marcadorJaExistia || process.env.DADOS_PERSISTENTES === '1';
 const ONDE = !EM_RAILWAY ? 'local' : noVolume ? 'volume' : marcadorJaExistia ? 'disco que sobreviveu a reinício' : 'TEMPORARIO';
 if (!DURAVEL) console.error('\n!!! ATENÇÃO: os dados estão num disco TEMPORÁRIO do Railway e serão APAGADOS a cada publicação.\n!!! Crie um Volume no serviço (caminho /data). Novos cadastros ficam bloqueados até lá (para ninguém perder a conta).\n');
 else console.log('Dados em: ' + DATA_DIR + ' (' + ONDE + ')');
+if (DATA_DIR_IGNORADO) console.warn('Aviso: DATA_DIR apontava para fora do volume; usando o volume ' + VOLUME + ' para não perder contas.');
 
 const BACKUPS = path.join(DATA_DIR, 'backups');
 const carregarArquivo = (alvo) => JSON.parse(fs.readFileSync(alvo, 'utf8'));
@@ -351,7 +373,7 @@ const srv = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
-    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: VERSAO_APP, hora: new Date().toISOString(), dados: ONDE, duravel: DURAVEL });
+    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: VERSAO_APP, hora: new Date().toISOString(), dados: ONDE, duravel: DURAVEL, volumeEncontrado: !!VOLUME, discoCriadoEm, noArDesde: NO_AR_DESDE, release: RELEASE });
     if (limited('api:' + ip, 300, 6e4)) return json(res, 429, { erro: 'Muitas requisições. Aguarde um instante.' });
     try { return await api(req, res, url, ip); }
     catch (e) { return json(res, e && e.message === 'grande' ? 413 : 400, { erro: 'Requisição inválida.' }); }
@@ -359,6 +381,7 @@ const srv = http.createServer(async (req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { erro: 'Método não permitido' });
   let p = decodeURIComponent(url.pathname);
   if (p === '/entrar') p = '/entrar.html';
+  if (p === '/status') p = '/status.html';
   if (p === '/estavel') p = '/estavel/';
   if (p.endsWith('/')) p += 'index.html';
   const file = path.normalize(path.join(PUB, p));

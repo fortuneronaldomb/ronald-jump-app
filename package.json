@@ -1,10 +1,14 @@
 {
   "name": "ronald-jump-app",
-  "version": "1.0.0",
-  "description": "Ronald Jump — contador de saltos por câmera (PWA)",
+  "version": "1.11.2",
+  "description": "Ronald Jump: contador de saltos pela câmera (PWA) com conta, ranking e comemoração",
   "type": "module",
-  "scripts": { "start": "node server.js", "test": "node tests/jump-counter.test.js" },
-  "engines": { "node": ">=18" },
+  "private": true,
   "license": "UNLICENSED",
-  "private": true
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
 }
