@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Ronald Jump</title>
 <meta name="theme-color" content="#0a0a0a">
-<meta name="rj-versao" content="8">
+<meta name="rj-versao" content="9">
 <meta name="description" content="Conte seus saltos pela câmera, veja as calorias e entre no ranking.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -76,6 +76,7 @@
     <label class="field">Seu nome no ranking<input id="pName" maxlength="20" autocomplete="nickname" placeholder="Ex.: Ronald"></label>
     <label class="field">Peso (kg), para estimar calorias<input id="pKg" type="number" inputmode="decimal" min="30" max="250" step="0.5"></label>
     <label class="field">País<select id="pCountry"></select></label>
+    <label class="field">Distância do treino<select id="pDist"><option value="perto">Perto (cerca de 1 m, só ombros)</option><option value="medio">Média (1,5 a 2 m)</option><option value="longe">Longe (2,5 a 3 m, corpo inteiro)</option></select></label>
     <label class="field">Sensibilidade da contagem<select id="pSens"><option value="alta">Alta (saltos pequenos)</option><option value="normal">Normal</option><option value="baixa">Baixa (evita contar sem pular)</option></select></label>
     <label class="switch"><input type="checkbox" id="pRope"><span>Som da corda a cada salto</span></label>
     <label class="switch"><input type="checkbox" id="pSound"><span>Som e vibração (inclui as comemorações)</span></label>
@@ -93,7 +94,7 @@
       <button class="btn ghost" id="sAll" type="button">Sair de todos os aparelhos</button>
       <button class="btn ghost" id="sExport" type="button">Baixar meus dados</button>
     </details>
-    <p class="muted" id="versaoApp">Versão 8</p>
+    <p class="muted" id="versaoApp">Versão 9</p>
     <p class="muted"><a href="/estavel/">Abrir a versão estável (sem conta)</a></p>
     <details class="danger"><summary>Excluir minha conta</summary>
       <p class="muted">Apaga sua conta, seus treinos e seu lugar no ranking. Não dá para desfazer.</p>
@@ -140,14 +141,15 @@
         <path d="M232 128 Q232 88 262 86 Q292 88 292 128 L292 146 L232 146 Z" fill="#f5f0e8"/>
         <path d="M70 160 H222" stroke="#d4511a" stroke-width="2.5" stroke-dasharray="6 5"/>
         <path d="M70 154 L62 160 L70 166 Z M222 154 L230 160 L222 166 Z" fill="#d4511a"/>
-        <text x="146" y="155" text-anchor="middle" font-size="13" font-weight="700" fill="#f5f0e8">cerca de 1 metro</text>
+        <text id="dicaTxt" x="146" y="155" text-anchor="middle" font-size="13" font-weight="700" fill="#f5f0e8">cerca de 1,5 a 2 metros</text>
       </svg>
       <ol>
         <li>Apoie o celular <b>em pé no chão</b>, encostado numa parede ou móvel, com a <b>câmera da frente</b> virada para você.</li>
-        <li>Fique a cerca de <b>1 metro</b> (dois passos).</li>
+        <li id="dicaDist">Fique a <b>cerca de 1,5 a 2 metros</b> (três passos).</li>
         <li>Encaixe <b>cabeça e ombros</b> no contorno tracejado.</li>
         <li>Use boa luz e deixe espaço livre para saltar.</li>
       </ol>
+      <div class="distChips" id="distChips" role="radiogroup" aria-label="Distância do treino"><span>Distância:</span><button type="button" data-d="perto" role="radio" aria-checked="false">Perto</button><button type="button" data-d="medio" role="radio" aria-checked="true">Média</button><button type="button" data-d="longe" role="radio" aria-checked="false">Longe</button></div>
       <button class="btn" id="dicaOk" type="button">Entendi</button>
     </div>
   </div>

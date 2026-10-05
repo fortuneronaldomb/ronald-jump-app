@@ -124,3 +124,6 @@ details.sec summary{color:var(--yellow)}
 #dica svg{display:block;width:100%;height:auto;max-height:150px;margin:2px 0 6px}
 #dica ol{margin:6px 0 4px;padding-left:20px;font-size:15px;color:#e6e0d4}#dica li{margin:5px 0}
 #dica .btn{margin-top:10px}
+.distChips{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:14px;color:var(--muted)}
+.distChips button{flex:1;border:1.5px solid var(--mid);background:var(--char);border-radius:999px;padding:10px 6px;font-weight:700;color:var(--bone);cursor:pointer;min-height:44px}
+.distChips button[aria-checked=true]{background:var(--yellow);border-color:var(--yellow);color:var(--ink)}

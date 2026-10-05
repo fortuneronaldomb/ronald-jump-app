@@ -8,10 +8,14 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUB = path.join(ROOT, 'public');
-const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
+// Onde ficam os dados (contas, treinos, fotos). No Railway, o Volume anexado define RAILWAY_VOLUME_MOUNT_PATH: usamos
+// essa pasta sozinhos, então não depende de lembrar de configurar DATA_DIR.
+const EM_RAILWAY = !!(process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_ENVIRONMENT_ID || process.env.RAILWAY_SERVICE_ID);
+const VOLUME = process.env.RAILWAY_VOLUME_MOUNT_PATH || '';
+const DATA_DIR = process.env.DATA_DIR || VOLUME || path.join(ROOT, 'data');
 const PORT = process.env.PORT || 3000;
 const FLAT = !fs.existsSync(PUB); // sem pasta public/ = modo "plano" (upload sem pastas no site do GitHub)
-const VERSAO_APP = 8;
+const VERSAO_APP = 9;
 const MODEL_FILE = path.join(PUB, 'model', 'pose_landmarker_lite.task');
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
 
@@ -30,9 +34,40 @@ if (!process.env.SKIP_MODEL) ensureModel();
 
 // ---- dados (arquivos JSON em DATA_DIR). Em produção use um volume ou, melhor, um banco (Postgres/Supabase).
 fs.mkdirSync(DATA_DIR, { recursive: true });
-const load = (n, d) => { try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, n), 'utf8')); } catch { return d; } };
-const timers = {};
-const persist = (n, get) => { clearTimeout(timers[n]); timers[n] = setTimeout(() => fs.writeFile(path.join(DATA_DIR, n), JSON.stringify(get()), { mode: 0o600 }, () => {}), 1200); };
+// O dado só é "durável" se estiver num disco que sobrevive às publicações. Sinais: volume do Railway, marcador que já existia
+// antes deste boot (sobreviveu a um reinício), fora do Railway, ou confirmação manual (DADOS_PERSISTENTES=1).
+const MARCADOR = path.join(DATA_DIR, '.rj-marcador');
+const marcadorJaExistia = fs.existsSync(MARCADOR);
+try { if (!marcadorJaExistia) fs.writeFileSync(MARCADOR, new Date().toISOString()); } catch {}
+const noVolume = !!VOLUME && path.resolve(DATA_DIR).startsWith(path.resolve(VOLUME));
+const DURAVEL = !EM_RAILWAY || noVolume || marcadorJaExistia || process.env.DADOS_PERSISTENTES === '1';
+const ONDE = !EM_RAILWAY ? 'local' : noVolume ? 'volume' : marcadorJaExistia ? 'disco que sobreviveu a reinício' : 'TEMPORARIO';
+if (!DURAVEL) console.error('\n!!! ATENÇÃO: os dados estão num disco TEMPORÁRIO do Railway e serão APAGADOS a cada publicação.\n!!! Crie um Volume no serviço (caminho /data). Novos cadastros ficam bloqueados até lá (para ninguém perder a conta).\n');
+else console.log('Dados em: ' + DATA_DIR + ' (' + ONDE + ')');
+
+const BACKUPS = path.join(DATA_DIR, 'backups');
+const carregarArquivo = (alvo) => JSON.parse(fs.readFileSync(alvo, 'utf8'));
+function load(n, d) {
+  const alvo = path.join(DATA_DIR, n);
+  if (!fs.existsSync(alvo)) return d;
+  try { return carregarArquivo(alvo); } catch (e) {
+    // arquivo corrompido: guarda uma cópia para análise (não deixa ser sobrescrito) e tenta o backup mais recente
+    try { fs.renameSync(alvo, alvo + '.corrompido-' + Date.now()); } catch {}
+    console.error('!!! ' + n + ' estava corrompido; tentando o backup mais recente.');
+    try { const dias = fs.readdirSync(BACKUPS).sort().reverse(); for (const dia of dias) { const c = path.join(BACKUPS, dia, n); if (fs.existsSync(c)) return carregarArquivo(c); } } catch {}
+    return d;
+  }
+}
+// Gravação segura: escreve num arquivo temporário e troca de nome (nunca deixa o arquivo pela metade) e grava tudo ao desligar.
+const gets = {}, timers = {}, sujo = new Set();
+function gravarAgora(n) {
+  if (!gets[n]) return;
+  const alvo = path.join(DATA_DIR, n), tmp = alvo + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(gets[n]()), { mode: 0o600 }); fs.renameSync(tmp, alvo); sujo.delete(n);
+}
+const persist = (n, get) => { gets[n] = get; sujo.add(n); clearTimeout(timers[n]); timers[n] = setTimeout(() => { try { gravarAgora(n); } catch (e) { console.error('Falha ao gravar ' + n + ':', e.message); } }, 1200); };
+function desligar() { for (const n of [...sujo]) { try { gravarAgora(n); } catch {} } process.exit(0); }
+process.on('SIGTERM', desligar); process.on('SIGINT', desligar);
 const FOTOS = path.join(DATA_DIR, 'fotos'); fs.mkdirSync(FOTOS, { recursive: true });
 const arqFoto = u => path.join(FOTOS, u.id + '.jpg');
 let scores = load('scores.json', []);   // {id: userId, secs, jumps, ts, pub}
@@ -41,6 +76,18 @@ let sessions = load('sessions.json', {}); // sha256(token) -> {uid, exp}
 const saveScores = () => persist('scores.json', () => scores);
 const saveUsers = () => persist('users.json', () => users);
 const saveSessions = () => persist('sessions.json', () => { const n = Date.now(); for (const k in sessions) if (sessions[k].exp < n) delete sessions[k]; return sessions; });
+
+// Cópia diária dos dados (guarda 14 dias) dentro do mesmo disco. Protege contra erro e arquivo corrompido.
+function backupDiario() {
+  try {
+    if (!users.length && !scores.length) return;
+    const dia = new Date().toISOString().slice(0, 10), pasta = path.join(BACKUPS, dia);
+    fs.mkdirSync(pasta, { recursive: true });
+    for (const n of ['users.json', 'scores.json']) if (fs.existsSync(path.join(DATA_DIR, n))) fs.copyFileSync(path.join(DATA_DIR, n), path.join(pasta, n));
+    for (const velho of fs.readdirSync(BACKUPS).sort().slice(0, -14)) fs.rmSync(path.join(BACKUPS, velho), { recursive: true, force: true });
+  } catch (e) { console.error('Backup diário falhou:', e.message); }
+}
+setTimeout(backupDiario, 5000).unref(); setInterval(backupDiario, 6 * 36e5).unref();
 
 const scrypt = (pw, salt) => new Promise((ok, no) => crypto.scrypt(pw, salt, 64, (e, k) => e ? no(e) : ok(k)));
 const sha = s => crypto.createHash('sha256').update(s).digest('hex');
@@ -144,6 +191,7 @@ async function api(req, res, url, ip) {
   }
 
   if (p === '/api/register' && m === 'POST') {
+    if (!DURAVEL) return json(res, 503, { erro: 'Cadastros temporariamente pausados: o servidor está sendo configurado para guardar as contas com segurança. Tente de novo mais tarde.' });
     if (limited('reg:' + ip, 10, 36e5)) return json(res, 429, { erro: 'Muitas tentativas. Tente mais tarde.' });
     const b = await readBody(req);
     const email = clean(b.email, 120).toLowerCase(), pw = String(b.password ?? '');
@@ -164,6 +212,44 @@ async function api(req, res, url, ip) {
     const u = users.find(x => x.email === email);
     if (!(await checkPw(u, b.password))) { log('login_fail', ip, sha(email).slice(0, 8)); return json(res, 401, { erro: 'E-mail ou senha incorretos.' }); }
     return json(res, 200, { token: newSession(u.id), user: pub(u) });
+  }
+
+  if (p.startsWith('/api/admin/')) { // só com o ADMIN_TOKEN configurado no Railway (Variables)
+    const tk = process.env.ADMIN_TOKEN || '', recebido = (req.headers.authorization || '').replace(/^Bearer /, '');
+    if (tk.length < 24) return json(res, 404, { erro: 'Não encontrado' });
+    if (limited('admin:' + ip, 10, 9e5)) return json(res, 429, { erro: 'Muitas tentativas.' });
+    const a = Buffer.from(recebido), b2 = Buffer.from(tk);
+    if (a.length !== b2.length || !crypto.timingSafeEqual(a, b2)) { log('admin_recusado', ip); return json(res, 401, { erro: 'Não autorizado.' }); }
+    if (p === '/api/admin/estado' && m === 'GET') return json(res, 200, { contas: users.length, treinos: scores.length, fotos: users.filter(x => x.foto).length, dados: ONDE, duravel: DURAVEL, pasta: DATA_DIR, versao: VERSAO_APP });
+    if (p === '/api/admin/backup' && m === 'GET') {
+      const fotos = {}; for (const x of users) if (x.foto) { try { fotos[x.id] = 'data:image/jpeg;base64,' + fs.readFileSync(arqFoto(x)).toString('base64'); } catch {} }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="backup-ronald-jump-' + new Date().toISOString().slice(0, 10) + '.json"', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify({ tipo: 'ronald-jump-backup', versao: VERSAO_APP, geradoEm: new Date().toISOString(), users, scores, fotos }));
+    }
+    if (p === '/api/admin/restaurar' && m === 'POST') { // junta o backup com o que já existe (não apaga contas novas)
+      const b = await readBody(req, 40e6);
+      if (b.tipo !== 'ronald-jump-backup' || !Array.isArray(b.users) || !Array.isArray(b.scores)) return json(res, 400, { erro: 'Arquivo de backup inválido.' });
+      let novas = 0, treinos = 0, fotosOk = 0;
+      for (const x of b.users) {
+        if (!x || typeof x.id !== 'string' || typeof x.email !== 'string' || typeof x.hash !== 'string' || typeof x.salt !== 'string') continue;
+        if (users.some(y => y.id === x.id || y.email === x.email)) continue;
+        users.push({ id: x.id, email: clean(x.email, 120).toLowerCase(), name: clean(x.name, 20), country: clean(x.country, 2).toUpperCase(), kg: +x.kg || 70, salt: x.salt, hash: x.hash, created: +x.created || Date.now(), foto: false, fotoV: 0, fotoRanking: !!x.fotoRanking }); novas++;
+      }
+      for (const x of b.scores) {
+        if (!x || !users.some(y => y.id === x.id) || !(+x.jumps >= 1) || !(+x.secs >= 5)) continue;
+        if (scores.some(y => y.id === x.id && y.ts === +x.ts && y.jumps === +x.jumps)) continue;
+        scores.push({ id: x.id, jumps: Math.floor(+x.jumps), secs: Math.floor(+x.secs), ts: Math.floor(+x.ts), pub: x.pub !== false }); treinos++;
+      }
+      for (const [id, d] of Object.entries(b.fotos || {})) {
+        const u2 = users.find(y => y.id === id), mm = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(d));
+        if (!u2 || u2.foto || !mm) continue; const buf = Buffer.from(mm[1], 'base64');
+        if (buf.length > 100000 || !(buf[0] === 0xff && buf[1] === 0xd8)) continue;
+        fs.writeFileSync(arqFoto(u2), buf, { mode: 0o600 }); u2.foto = true; u2.fotoV = Date.now(); fotosOk++;
+      }
+      saveUsers(); saveScores(); log('admin_restaurar', ip, novas + ' contas');
+      return json(res, 200, { ok: true, contasRestauradas: novas, treinosRestaurados: treinos, fotosRestauradas: fotosOk });
+    }
+    return json(res, 404, { erro: 'Não encontrado' });
   }
 
   const u = authUser(req);
@@ -265,7 +351,7 @@ const srv = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
-    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: VERSAO_APP, hora: new Date().toISOString() });
+    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: VERSAO_APP, hora: new Date().toISOString(), dados: ONDE, duravel: DURAVEL });
     if (limited('api:' + ip, 300, 6e4)) return json(res, 429, { erro: 'Muitas requisições. Aguarde um instante.' });
     try { return await api(req, res, url, ip); }
     catch (e) { return json(res, e && e.message === 'grande' ? 413 : 400, { erro: 'Requisição inválida.' }); }

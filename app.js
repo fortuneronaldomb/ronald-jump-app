@@ -318,7 +318,7 @@ var NADA = new Proxy(function() {
 }, toggle() {
 }, contains: () => false } : k === Symbol.toPrimitive ? () => "" : NADA, set: () => true, apply: () => NADA });
 var $ = (id) => document.getElementById(id) || NADA;
-var VERSAO = 8;
+var VERSAO = 9;
 (async () => {
   const meta = Number(document.querySelector('meta[name="rj-versao"]')?.content || 0);
   try {
@@ -364,7 +364,7 @@ var dayKey = (d) => {
   const x = new Date(d);
   return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
 };
-var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
+var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, dist: "medio", dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
 var saveProfile = () => store.set("rj.profile", profile);
 saveProfile();
 var history = store.get("rj.hist", []);
@@ -703,10 +703,11 @@ async function loadModel(onStatus) {
     loading = null;
   }
 }
-var SW_MIN = 0.2;
-var SW_RUN_MIN = 0.15;
-var SW_MAX = 0.62;
-var SW_IDEAL = 0.3;
+var DIST = {
+  perto: { min: 0.2, run: 0.15, ideal: 0.28, max: 0.62, txt: "cerca de 1 metro", passos: "dois passos" },
+  medio: { min: 0.13, run: 0.1, ideal: 0.17, max: 0.45, txt: "cerca de 1,5 a 2 metros", passos: "tr\xEAs passos" },
+  longe: { min: 0.09, run: 0.07, ideal: 0.12, max: 0.3, txt: "cerca de 2,5 a 3 metros", passos: "quatro passos" }
+};
 var dicaAberta = false;
 var W = { running: false, raf: 0, stream: null, lock: null };
 var video = document.createElement("video");
@@ -808,8 +809,9 @@ async function startWorkout() {
     const shOk = !!lm && [L.ls, L.rs].every((i) => vis(lm, i) > 0.5);
     const hipOk = !!lm && [L.lh, L.rh].every((i) => vis(lm, i) > 0.5);
     const sw = shOk ? Math.hypot((lm[L.ls].x - lm[L.rs].x) * vw, (lm[L.ls].y - lm[L.rs].y) * vh) / vh : 0;
-    const longe = shOk && sw < (phase === "run" ? SW_RUN_MIN : SW_MIN);
-    const perto = shOk && sw > SW_MAX;
+    const dd = DIST[profile.dist] || DIST.medio;
+    const longe = shOk && sw < (phase === "run" ? dd.run : dd.min);
+    const perto = shOk && sw > dd.max;
     const torsoOk = shOk && !longe && (phase === "run" || !perto);
     if (torsoOk) {
       const want = hipOk ? "tronco" : "ombros";
@@ -918,7 +920,7 @@ async function startWorkout() {
       }
       W.end = { jumps: counter.count, secs: Math.round(active) };
     }
-    if (phase === "position" && !dicaAberta) guia(cw, ch, SW_IDEAL * vh * sc, torsoOk);
+    if (phase === "position" && !dicaAberta) guia(cw, ch, dd.ideal * vh * sc, torsoOk);
     if (lm && torsoOk) {
       ctx.fillStyle = "rgba(232,194,49,.85)";
       for (const i of hipOk ? [L.ls, L.rs, L.lh, L.rh] : [L.ls, L.rs]) {
@@ -984,6 +986,21 @@ function drawRope(P, lm, now, counter, lastJumpAt, swPx) {
     ctx.fill();
   }
 }
+function aplicarDist() {
+  const d = DIST[profile.dist] || DIST.medio;
+  document.querySelectorAll("#distChips button").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.d === profile.dist)));
+  $("dicaDist").innerHTML = `Fique a <b>${d.txt}</b> (${d.passos}).`;
+  $("dicaTxt").textContent = d.txt;
+  $("pDist").value = profile.dist;
+}
+function escolherDist(v) {
+  if (!DIST[v]) return;
+  profile.dist = v;
+  saveProfile();
+  aplicarDist();
+}
+document.querySelectorAll("#distChips button").forEach((b) => b.addEventListener("click", () => escolherDist(b.dataset.d)));
+$("pDist").addEventListener("change", (e) => escolherDist(e.target.value));
 function abrirDica(sim) {
   dicaAberta = !!sim;
   $("dica").hidden = !sim;
@@ -1222,6 +1239,7 @@ function entrar() {
 }
 renderGoals();
 renderProfile();
+aplicarDist();
 renderHome();
 modoAuth("login");
 iniciar();
