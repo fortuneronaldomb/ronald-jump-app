@@ -258,7 +258,7 @@ var NADA = new Proxy(function() {
 }, toggle() {
 }, contains: () => false } : k === Symbol.toPrimitive ? () => "" : NADA, set: () => true, apply: () => NADA });
 var $ = (id) => document.getElementById(id) || NADA;
-var VERSAO = 6;
+var VERSAO = 7;
 (async () => {
   const meta = Number(document.querySelector('meta[name="rj-versao"]')?.content || 0);
   try {
@@ -337,9 +337,7 @@ function sairLocal() {
   });
   endWorkout(true);
   $("result").hidden = true;
-  $("aEmail").value = "";
-  $("aPass").value = "";
-  abrirAuth();
+  irParaEntrar();
 }
 function toast(t) {
   const el = $("toast");
@@ -875,6 +873,13 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden && W.running) finish();
 });
 var modo = "login";
+function irParaEntrar() {
+  try {
+    location.replace("/entrar.html");
+  } catch {
+    abrirAuth();
+  }
+}
 function abrirAuth() {
   $("auth").hidden = false;
   $("auth").className = modo === "login" ? "login" : "";
@@ -978,7 +983,7 @@ function aplicarUsuario(u) {
   renderProfile();
 }
 async function iniciar() {
-  if (!token) return abrirAuth();
+  if (!token) return irParaEntrar();
   let r = null;
   try {
     r = await api("/api/me");
@@ -988,10 +993,18 @@ async function iniciar() {
     if (user) {
       aplicarUsuario(user);
       entrar();
+    } else irParaEntrar();
+    return;
+  }
+  if (!r.ok) {
+    if (r.status === 401) return irParaEntrar();
+    toast("Servidor indispon\xEDvel agora. Tente de novo em instantes.");
+    if (user) {
+      aplicarUsuario(user);
+      entrar();
     } else abrirAuth();
     return;
   }
-  if (!r.ok) return abrirAuth();
   aplicarUsuario(r.d.user);
   const srv = r.d.workouts.map((w) => ({ t: w.t, jumps: w.jumps, secs: w.secs, kcal: +kcal(w.secs, r.d.user.kg).toFixed(1) }));
   const ts = new Set(srv.map((x) => x.t));

@@ -12,7 +12,7 @@ const www = path.join(out, 'www');
 
 // destino dentro de www -> aceita o arquivo em public/<destino> ou solto ao lado deste script
 const arquivos = [
-  'index.html', 'config.js', 'boot.js', 'style.css', 'app.js', 'privacidade.html', 'manifest.webmanifest',
+  'index.html', 'entrar.html', 'entrar.js', 'config.js', 'boot.js', 'style.css', 'app.js', 'privacidade.html', 'manifest.webmanifest',
   'icons/logo.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png',
   'vendor/fonts/big-shoulders-display-latin-700-normal.woff2', 'vendor/fonts/big-shoulders-display-latin-900-normal.woff2',
   'vendor/fonts/dm-sans-latin-400-normal.woff2', 'vendor/fonts/dm-sans-latin-700-normal.woff2',

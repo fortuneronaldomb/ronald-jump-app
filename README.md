@@ -139,3 +139,11 @@ Se contar de menos, aumente a sensibilidade. Se contar de mais, diminua.
 **Versão 5 (rede de segurança):** `boot.js` mostra o aviso "Atualizar o app" (limpa cache e recarrega) se o app não terminar de carregar em 6 segundos ou se der erro ao abrir. Para checar se o servidor está no ar, abra `/api/health` no endereço do app: deve aparecer `{"ok":true,...}`. O endereço do cliente para os limites de tentativas agora vem do cabeçalho `x-real-ip` do proxy.
 
 **Versão 6:** o `app.js` agora é um arquivo único (já inclui a contagem de saltos e a comemoração), então não depende mais de `jump-counter.js` nem de `celebration.js` para abrir. Esses dois arquivos podem ficar no GitHub sem problema. O aviso amarelo "O app não carregou direito" agora mostra o motivo (arquivo que não foi encontrado, versão do app.js, mensagem de erro). A versão aparece em Perfil.
+
+**Duas versões (versão 7):**
+- **Versão nova** (`/`): com conta, ranking, comemoração e rastreio de perto.
+- **Versão estável** (`/estavel/`): a versão simples, sem conta e sem ranking, em que o treino fica só no celular. Serve de reserva se a nova der problema. Os arquivos dela são os `estavel-*` (soltos no GitHub); não os apague. Dá para instalar separada na tela de início (ela aparece como "RJ estável").
+- A versão nova tem links para a estável na tela de login, no Perfil e no aviso amarelo de erro.
+
+**Página de entrada (versão 7):** a conta agora é criada e acessada em uma página própria, `/entrar.html` (também `/entrar`), com abas Entrar e Criar conta, regras da senha em tempo real e uma área "Use como app no celular" (botão Instalar no Android, passo a passo no iPhone). Quem abre o app sem estar logado é levado para essa página; ao entrar, volta para o app. Quem sai da conta (ou exclui) também volta para ela. Arquivos: `entrar.html` e `entrar.js` (não dependem do `style.css`).
+Regras da senha: 8+ caracteres, letras e números, sem sequências (1234, abcd) nem repetições (aaaa), sem usar a parte do e-mail antes do @ e fora da lista de senhas comuns (por exemplo `ronald123`, `senha123`).
