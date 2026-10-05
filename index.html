@@ -15,6 +15,7 @@
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preload" href="/vendor/fonts/big-shoulders-display-latin-900-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
+<script src="/config.js"></script>
 </head>
 <body>
 <main id="screens">
@@ -24,7 +25,7 @@
     <div class="hero">
       <div class="orbit"><i class="ring"></i><i class="ring b"></i><img src="/icons/logo.png" alt="Logo Ronald Jump"></div>
       <h1>Salte. A câmera conta.</h1>
-      <p class="muted">Apoie o celular em pé no chão, a uns 2 metros, com a câmera frontal pegando seu corpo inteiro.</p>
+      <p class="muted">Apoie o celular em pé no chão com a câmera frontal. Pode ficar de perto, a cerca de 1 metro, com a cabeça e os ombros na tela, ou mais longe, com o corpo inteiro.</p>
     </div>
     <h2 class="sub">Meta do treino</h2>
     <div class="chips" id="goals" role="radiogroup" aria-label="Meta do treino"></div>
@@ -60,16 +61,31 @@
 
   <section id="profile" class="screen">
     <header class="top"><b class="wordmark">Perfil</b></header>
+    <p class="muted" id="pEmail"></p>
     <label class="field">Seu nome no ranking<input id="pName" maxlength="20" autocomplete="nickname" placeholder="Ex.: Ronald"></label>
     <label class="field">Peso (kg), para estimar calorias<input id="pKg" type="number" inputmode="decimal" min="30" max="250" step="0.5"></label>
     <label class="field">País<select id="pCountry"></select></label>
-    <label class="switch"><input type="checkbox" id="pSound"><span>Som e vibração a cada salto</span></label>
-    <label class="switch"><input type="checkbox" id="pRank"><span>Enviar meus treinos ao ranking</span></label>
+    <label class="field">Sensibilidade da contagem<select id="pSens"><option value="alta">Alta (saltos pequenos)</option><option value="normal">Normal</option><option value="baixa">Baixa (evita contar sem pular)</option></select></label>
+    <label class="switch"><input type="checkbox" id="pSound"><span>Som e vibração (inclui as comemorações)</span></label>
+    <label class="switch"><input type="checkbox" id="pRank"><span>Aparecer no ranking mundial</span></label>
     <button class="btn" id="install" type="button" hidden>Instalar o app</button>
     <p class="muted" id="iosHint" hidden>No iPhone: toque em Compartilhar e depois em Adicionar à Tela de Início.</p>
+    <button class="btn ghost" id="logout" type="button">Sair da conta</button>
     <h2 class="sub">Privacidade</h2>
-    <p class="muted">A câmera é usada só para detectar seus movimentos, direto no celular. O vídeo não é gravado nem enviado. Ao entrar no ranking, enviamos apenas nome, país e o número de saltos e segundos do treino.</p>
+    <p class="muted">A câmera é usada só para detectar seus movimentos, direto no celular. O vídeo não é gravado nem enviado. Guardamos seu e-mail, nome, país, peso e os treinos. <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a></p>
     <p class="muted">As calorias são uma estimativa (10 METs × peso × tempo) e não substituem orientação profissional.</p>
+    <details class="danger sec"><summary>Segurança e meus dados</summary>
+      <label class="field">Senha atual<input id="sOld" type="password" autocomplete="current-password"></label>
+      <label class="field">Nova senha<input id="sNew" type="password" autocomplete="new-password" placeholder="Letras e números, mínimo 8"></label>
+      <button class="btn" id="sChange" type="button">Alterar senha</button>
+      <button class="btn ghost" id="sAll" type="button">Sair de todos os aparelhos</button>
+      <button class="btn ghost" id="sExport" type="button">Baixar meus dados</button>
+    </details>
+    <details class="danger"><summary>Excluir minha conta</summary>
+      <p class="muted">Apaga sua conta, seus treinos e seu lugar no ranking. Não dá para desfazer.</p>
+      <label class="field">Confirme sua senha<input id="dPass" type="password" autocomplete="current-password"></label>
+      <button class="btn stop" id="delAcc" type="button">Excluir para sempre</button>
+    </details>
   </section>
 </main>
 
@@ -82,6 +98,8 @@
 
 <div id="workout" hidden>
   <canvas id="cv"></canvas>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div id="banner" hidden aria-live="polite"><div class="title"></div><div class="reels" aria-hidden="true"></div><div class="sub"></div></div>
   <div class="hud top-hud">
     <button class="x" id="cancel" type="button" aria-label="Sair do treino">✕</button>
     <div class="pill"><b id="hTime">00:00</b></div>
@@ -111,6 +129,24 @@
     <p class="muted" id="rRank" role="status"></p>
     <button class="btn" id="rShare" type="button">Compartilhar</button>
     <button class="btn ghost" id="rClose" type="button">Voltar ao início</button>
+  </div>
+</div>
+
+<div id="auth" hidden>
+  <div class="card">
+    <img src="/icons/logo.png" alt="" width="84" height="84">
+    <h1>Ronald Jump</h1>
+    <div class="tabs"><button class="atab on" data-m="login" type="button">Entrar</button><button class="atab" data-m="reg" type="button">Criar conta</button></div>
+    <form id="authForm" novalidate>
+      <label class="field reg">Nome no ranking<input id="aName" maxlength="20" autocomplete="nickname" placeholder="Como você quer aparecer"></label>
+      <label class="field">E-mail<input id="aEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="off"></label>
+      <label class="field">Senha<input id="aPass" type="password" autocomplete="current-password" placeholder="Mínimo de 8 caracteres"></label>
+      <label class="field reg">País<select id="aCountry"></select></label>
+      <label class="field reg">Peso (kg), para estimar calorias<input id="aKg" type="number" inputmode="decimal" min="30" max="250" step="0.5" value="70"></label>
+      <label class="switch reg"><input type="checkbox" id="aConsent"><span>Tenho 18 anos ou mais e aceito a <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade e os Termos de Uso</a>, inclusive o uso do meu peso para calcular calorias.</span></label>
+      <button class="btn big" id="aSubmit" type="submit">Entrar</button>
+      <p class="err" id="aErr" role="alert"></p>
+    </form>
   </div>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>

@@ -81,3 +81,55 @@ public/sw.js, manifest.webmanifest, icons/   instalação e uso offline
 public/vendor/              MediaPipe e fontes (hospedados no seu domínio)
 tests/                      teste do contador
 ```
+
+---
+## Novidades da versão 2
+
+**Conta com e-mail e senha.** Ao abrir, a pessoa cria uma conta (nome, país, peso, aceite da política) ou entra. O ranking agora é por conta,
+os treinos ficam salvos no servidor e acompanham a pessoa em qualquer celular. As senhas são guardadas com criptografia (scrypt),
+há limite de tentativas de login e é possível sair e excluir a conta pelo Perfil.
+- Os dados ficam em `DATA_DIR` (`users.json`, `sessions.json`, `scores.json`). Configure o volume como explicado acima.
+- **Ainda não existe "esqueci minha senha"**: isso exige um serviço de e-mail (por exemplo Resend ou SendGrid). Deixe pronto antes de abrir ao público.
+- **Não há confirmação de e-mail** no cadastro. Para um app grande, adicione.
+
+**Comemoração estilo cassino a cada 50 saltos.** Caça-níquel com o número de saltos, chuva de moedas, luzes piscando, som e vibração.
+50, 150, 250… = COMBO. Múltiplos de 100 = JACKPOT. Múltiplos de 500 = MEGA JACKPOT. Respeita o modo "reduzir movimento" do celular
+e o botão de som do Perfil. Arquivo: `celebration.js`.
+
+**Para as lojas:** veja `COMO-VIRAR-APP.md` e o script `montar-app-mobile.mjs`. Página `privacidade.html` (modelo) incluída.
+
+---
+## Versão 3: proteções de segurança e privacidade
+
+**O que está protegido (testado no servidor):**
+- Cabeçalhos de segurança em todas as páginas: bloqueio de código externo (CSP), proibição de abrir o app dentro de outro site (anti-clickjacking), HTTPS forçado e HSTS, sem vazamento de endereço de origem.
+- A página só carrega scripts do próprio domínio. Isso também **bloqueia a telemetria do Google** embutida na biblioteca de detecção de corpo, mantendo a promessa de privacidade da política.
+- Senhas com scrypt, regras de senha (8+ com letras e números, sem sequências, sem senhas comuns, sem usar o e-mail), troca de senha que derruba os outros aparelhos, "sair de todos os aparelhos", máximo de 5 aparelhos por conta.
+- Limites contra força bruta: 5 tentativas de login por e-mail e 20 por IP a cada 15 minutos, 300 requisições por minuto por IP. Respostas de erro iguais para e-mail inexistente e senha errada.
+- API só aceita chamadas de outro domínio pelas origens permitidas (app das lojas). Para liberar outro domínio, defina `ALLOWED_ORIGINS` (separados por vírgula).
+- Arquivos de dados com permissão restrita (600), registros de segurança sem senhas, tempo máximo por requisição.
+- Direitos do titular dentro do app: baixar meus dados, editar, trocar senha, sair de todos, excluir conta.
+- Política de Privacidade e Termos completos (`privacidade.html`), exclusivo para maiores de 18 anos.
+
+**Se o detector de movimento parar de carregar depois desta atualização:** a regra de segurança (CSP) é restrita e eu não pude testar a câmera em celular real.
+No Railway, em Variables, crie `CSP_MODE` com o valor `report`. O app volta a funcionar e o navegador só registra o que seria bloqueado. Me avise para eu ajustar a regra.
+
+**O que ainda NÃO existe (importante):**
+- "Esqueci minha senha" e confirmação de e-mail (precisam de um serviço de envio de e-mail).
+- Verificação em dois passos.
+- Proteção total contra trapaça no ranking: a contagem é feita no celular, então alguém com conhecimento técnico pode enviar números falsos. Os limites reduzem o abuso, mas não eliminam. Não faça sorteios ou prêmios com base nesse ranking sem reforçar a validação.
+- Backup automático dos dados: configure no seu provedor ou migre para um banco gerenciado (Postgres/Supabase) quando o app crescer.
+- Proteção do código contra cópia: o código de um app web pode ser lido por quem abrir o navegador. Proteja o negócio com registro da marca no INPI, os Termos de Uso e mantendo as regras valiosas (planos, ranking, assinatura) no servidor.
+
+---
+## Versão 4: rastreio de perto
+
+O app não exige mais o corpo inteiro na tela. Basta aparecer a **cabeça e os ombros** (cerca de 1 metro do celular).
+- **Perto (ombros):** conta pelo movimento vertical dos ombros, medido em relação à largura deles.
+- **Longe (tronco):** se o quadril também aparecer, usa ombros e quadril, como antes.
+- O app escolhe sozinho e troca no meio do treino (por exemplo, se a pessoa se aproximar) sem perder a contagem.
+- A corda virtual continua aparecendo: se as mãos ou os pés saírem da tela, ela é estimada a partir dos ombros.
+- Novo em Perfil: **Sensibilidade da contagem** (Alta para saltos pequenos, Baixa para evitar contar sem pular).
+
+Testado com sinais simulados (inclusive com mais ruído, como o sinal dos ombros) e na troca de modo. **Falta testar em celular real** de perto, com roupas e iluminações diferentes: salte 30 vezes contando de cabeça e compare.
+Se contar de menos, aumente a sensibilidade. Se contar de mais, diminua.

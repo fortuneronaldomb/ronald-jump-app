@@ -1,4 +1,5 @@
 import { JumpCounter, kcal as calcKcal, equivalente } from '/jump-counter.js';
+import { celebrate } from '/celebration.js';
 
 const $ = id => document.getElementById(id);
 const store = {
@@ -13,11 +14,25 @@ const num = (n, d = 0) => n.toLocaleString('pt-BR', { minimumFractionDigits: d, 
 const dayKey = d => { const x = new Date(d); return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`; };
 
 // ---------- perfil e histórico
-const profile = Object.assign({ name: '', kg: 70, country: 'BR', sound: true, rank: true, rope: true, goal: 'free', id: '' }, store.get('rj.profile', {}));
-if (!profile.id) profile.id = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
+const profile = Object.assign({ name: '', kg: 70, country: 'BR', sound: true, rank: true, rope: true, goal: 'free', sens: 'normal' }, store.get('rj.profile', {}));
 const saveProfile = () => store.set('rj.profile', profile);
 saveProfile();
 let history = store.get('rj.hist', []);
+let pending = store.get('rj.pending', []);
+const API = window.RJ_API_BASE || '';
+let token = store.get('rj.token', '');
+let user = store.get('rj.user', null);
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, { method: opts.method || 'GET', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  let d = {}; try { d = await r.json(); } catch {}
+  if (r.status === 401 && token && !/^\/api\/(login|register|account)/.test(path)) { sairLocal(); }
+  return { ok: r.ok, status: r.status, d };
+}
+function sairLocal() {
+  token = ''; user = null; history = []; pending = [];
+  ['rj.token', 'rj.user', 'rj.hist', 'rj.pending'].forEach(k => { try { localStorage.removeItem(k); } catch {} });
+  endWorkout(true); $('result').hidden = true; abrirAuth();
+}
 
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2800); }
 
@@ -78,7 +93,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 async function loadRank() {
   $('rankMsg').textContent = 'Carregando…';
   try {
-    const r = await fetch('/api/ranking?period=' + rankPeriod); if (!r.ok) throw 0; const d = await r.json();
+    const r = await fetch(API + '/api/ranking?period=' + rankPeriod); if (!r.ok) throw 0; const d = await r.json();
     $('rankMsg').textContent = d.users.length ? '' : 'Ninguém no ranking ainda. Faça um treino e seja o primeiro.';
     $('rankUsers').innerHTML = d.users.map(u => `<li class="${u.name === profile.name && u.country === profile.country ? 'me' : ''}"><span>${flag(u.country)} ${esc(u.name)}</span><b>${num(u.jumps)}</b></li>`).join('');
     $('rankCountries').innerHTML = d.countries.map(c => `<li><span>${flag(c.country)} ${esc(PAISES[c.country] || c.country)}</span><b>${num(c.jumps)}</b></li>`).join('');
@@ -87,13 +102,19 @@ async function loadRank() {
 
 // ---------- perfil
 function renderProfile() {
-  $('pName').value = profile.name; $('pKg').value = profile.kg; $('pSound').checked = profile.sound; $('pRank').checked = profile.rank; $('ropeToggle').checked = profile.rope;
+  $('pName').value = profile.name; $('pKg').value = profile.kg; $('pSound').checked = profile.sound; $('pSens').value = profile.sens; $('pRank').checked = profile.rank; $('ropeToggle').checked = profile.rope;
   $('pCountry').innerHTML = Object.entries(PAISES).map(([c, n]) => `<option value="${c}">${flag(c)} ${n}</option>`).join('');
   $('pCountry').value = profile.country;
 }
-$('pName').addEventListener('change', e => { profile.name = e.target.value.replace(/[<>&"'`]/g, '').trim().slice(0, 20); e.target.value = profile.name; saveProfile(); });
-$('pKg').addEventListener('change', e => { const v = +String(e.target.value).replace(',', '.'); profile.kg = v >= 30 && v <= 250 ? v : 70; e.target.value = profile.kg; saveProfile(); });
-$('pCountry').addEventListener('change', e => { profile.country = e.target.value; saveProfile(); });
+async function salvarConta() {
+  saveProfile(); if (!token) return;
+  const r = await api('/api/me', { method: 'PATCH', body: { name: profile.name, country: profile.country, kg: profile.kg } }).catch(() => null);
+  if (r && r.ok) { user = r.d.user; store.set('rj.user', user); } else if (r && r.d.erro) toast(r.d.erro);
+}
+$('pName').addEventListener('change', e => { profile.name = e.target.value.replace(/[<>&"'`]/g, '').trim().slice(0, 20) || profile.name; e.target.value = profile.name; salvarConta(); });
+$('pKg').addEventListener('change', e => { const v = +String(e.target.value).replace(',', '.'); profile.kg = v >= 30 && v <= 250 ? v : profile.kg; e.target.value = profile.kg; salvarConta(); });
+$('pCountry').addEventListener('change', e => { profile.country = e.target.value; salvarConta(); });
+$('pSens').addEventListener('change', e => { profile.sens = e.target.value; saveProfile(); });
 $('pSound').addEventListener('change', e => { profile.sound = e.target.checked; saveProfile(); });
 $('pRank').addEventListener('change', e => { profile.rank = e.target.checked; saveProfile(); });
 $('ropeToggle').addEventListener('change', e => { profile.rope = e.target.checked; saveProfile(); });
@@ -164,12 +185,13 @@ async function startWorkout() {
   try { lmk = await loadModel(msg); } catch (e) { console.error(e); endWorkout(true); toast('Não consegui carregar o detector. Verifique a internet e tente de novo.'); return; }
   try { W.lock = await navigator.wakeLock?.request('screen'); } catch {}
 
-  const counter = new JumpCounter();
+  const counter = new JumpCounter({ up: { alta: 0.035, normal: 0.05, baixa: 0.07 }[profile.sens] || 0.05 });
+  let mode = 'tronco', modeSince = 0;
   let phase = 'position', okSince = 0, cdStart = 0, lastCd = 0;
   let t0 = 0, active = 0, lastTick = 0, lastSeen = 0, lastJumpAt = 0, lastVT = -1, paused = false;
   const counted = () => counter.count;
   W.running = true; W.end = null;
-  msg('Afaste-se até aparecer o corpo inteiro na tela');
+  msg('Fique de frente, com a cabeça e os ombros na tela');
 
   const loop = () => {
     if (!W.running) return;
@@ -189,13 +211,22 @@ async function startWorkout() {
     ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, 0, cw, ch);
     const P = i => [ox + lm[i].x * vw * sc, oy + lm[i].y * vh * sc];
 
-    const torsoOk = lm && [L.ls, L.rs, L.lh, L.rh].every(i => vis(lm, i) > 0.55);
-    const lowerOk = lm && [L.lk, L.rk, L.la, L.ra].some(i => vis(lm, i) > 0.4);
-    if (torsoOk) lastSeen = now;
+    // Funciona de perto (só cabeça e ombros) ou de longe (com quadril): usa o que a câmera enxerga.
+    const shOk = !!lm && [L.ls, L.rs].every(i => vis(lm, i) > 0.5);
+    const hipOk = !!lm && [L.lh, L.rh].every(i => vis(lm, i) > 0.5);
+    const sw = shOk ? Math.hypot((lm[L.ls].x - lm[L.rs].x) * vw, (lm[L.ls].y - lm[L.rs].y) * vh) / vh : 0; // largura dos ombros / altura da imagem
+    const torsoOk = shOk && sw > 0.07; // ombros grandes o bastante para rastrear
+    if (torsoOk) {
+      const want = hipOk ? 'tronco' : 'ombros';
+      if (phase !== 'run') { mode = want; modeSince = 0; }
+      else if (want !== mode) { if (!modeSince) modeSince = now; if (now - modeSince > 500) { mode = want; modeSince = 0; counter.rebase(); } }
+      else modeSince = 0;
+      lastSeen = now;
+    }
 
     if (phase === 'position') {
-      if (torsoOk && lowerOk) { if (!okSince) okSince = now; msg('Isso! Fique parado por um instante…'); }
-      else { okSince = 0; msg(lm ? 'Afaste-se até aparecer o corpo inteiro na tela' : 'Procurando você… fique de frente para a câmera'); }
+      if (torsoOk) { if (!okSince) okSince = now; msg(hipOk ? 'Isso! Fique parado por um instante…' : 'Modo perto: pode saltar! Fique parado por um instante…'); }
+      else { okSince = 0; msg(!lm ? 'Procurando você… fique de frente para a câmera' : shOk ? 'Chegue um pouco mais perto' : 'Mostre a cabeça e os ombros para a câmera'); }
       if (okSince && now - okSince > 1200) { phase = 'count'; cdStart = now; lastCd = 4; msg(''); $('cd').hidden = false; }
     } else if (phase === 'count') {
       const left = 3 - Math.floor((now - cdStart) / 1000);
@@ -208,12 +239,19 @@ async function startWorkout() {
         active += (now - lastTick) / 1000;
       } else if (!paused) { paused = true; msg('Pausado. Volte para o enquadramento para continuar.'); }
       lastTick = now;
+      let y = 0, scale = 0;
       if (torsoOk) {
-        const sx = (lm[L.ls].x + lm[L.rs].x) / 2, sy = (lm[L.ls].y + lm[L.rs].y) / 2, hx = (lm[L.lh].x + lm[L.rh].x) / 2, hy = (lm[L.lh].y + lm[L.rh].y) / 2;
-        const torso = Math.hypot((sx - hx) * vw, (sy - hy) * vh) / vh;
-        const r = counter.update((sy + hy) / 2, torso, now);
+        const sx = (lm[L.ls].x + lm[L.rs].x) / 2, sy = (lm[L.ls].y + lm[L.rs].y) / 2;
+        if (mode === 'tronco' && hipOk) {
+          const hx = (lm[L.lh].x + lm[L.rh].x) / 2, hy = (lm[L.lh].y + lm[L.rh].y) / 2;
+          y = (sy + hy) / 2; scale = Math.hypot((sx - hx) * vw, (sy - hy) * vh) / vh;
+        } else if (mode === 'ombros') { y = sy; scale = sw * 1.3; } // ombros ≈ 0,77 do tamanho do tronco
+      }
+      if (scale > 0) {
+        const r = counter.update(y, scale, now);
         if (r.jumped) {
           lastJumpAt = now; beep(880, 45); buzz(12);
+          if (counter.count % 50 === 0) celebrate(counter.count, { actx: profile.sound ? actx : null, vibrate: profile.sound });
           $('hCount').textContent = counter.count; $('hCount').classList.remove('pop'); void $('hCount').offsetWidth; $('hCount').classList.add('pop');
         }
       }
@@ -230,19 +268,22 @@ async function startWorkout() {
 
     if (lm && torsoOk) {
       ctx.fillStyle = 'rgba(232,194,49,.85)';
-      for (const i of [L.ls, L.rs, L.lh, L.rh]) { const [x, y] = P(i); ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill(); }
-      if (profile.rope && phase !== 'position' && vis(lm, L.lw) > 0.3 && vis(lm, L.rw) > 0.3) drawRope(P, lm, now, counter, lastJumpAt);
+      for (const i of (hipOk ? [L.ls, L.rs, L.lh, L.rh] : [L.ls, L.rs])) { const [x, y] = P(i); ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill(); }
+      if (profile.rope && phase !== 'position') drawRope(P, lm, now, counter, lastJumpAt, sw * vh * sc);
     }
     ctx.restore();
   };
   loop();
 }
 
-function drawRope(P, lm, now, counter, lastJumpAt) {
-  const [lx, ly] = P(L.lw), [rx, ry] = P(L.rw);
+function drawRope(P, lm, now, counter, lastJumpAt, swPx) {
+  // se as mãos ou os pés saírem da tela (treino de perto), a corda é estimada a partir dos ombros
+  const [lsx, lsy] = P(L.ls), [rsx, rsy] = P(L.rs);
+  const [lx, ly] = vis(lm, L.lw) > 0.3 ? P(L.lw) : [lsx + (lsx - rsx) * 0.35, lsy + swPx * 1.5];
+  const [rx, ry] = vis(lm, L.rw) > 0.3 ? P(L.rw) : [rsx + (rsx - lsx) * 0.35, rsy + swPx * 1.5];
   const feet = [L.la, L.ra].filter(i => vis(lm, i) > 0.3).map(i => P(i)[1]);
   const hy = (ly + ry) / 2, nose = P(L.nose)[1];
-  const feetY = feet.length ? Math.max(...feet) + 8 : hy + 220, headY = Math.min(nose - 50, hy - 160);
+  const feetY = feet.length ? Math.max(...feet) + 8 : hy + swPx * 2.6, headY = Math.min(nose - swPx * 0.6, hy - swPx * 2);
   let ropeY;
   if (now - lastJumpAt < 1400) {
     const th = 2 * Math.PI * (((now - counter.lastTake) / counter.period) % 1);
@@ -270,12 +311,24 @@ function finish() {
   $('rJumps').textContent = num(e.jumps); $('rTime').textContent = mmss(e.secs); $('rKcal').textContent = num(k, 1);
   $('rPace').textContent = num(Math.round(e.jumps / e.secs * 60)); $('rEq').textContent = k >= 5 ? `Você queimou ${num(k, 1)} kcal, ${equivalente(k)}.` : '';
   $('rRank').textContent = ''; $('result').hidden = false; W.last = item;
-  if (profile.rank && profile.name) {
-    $('rRank').textContent = 'Enviando ao ranking…';
-    fetch('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: profile.id, name: profile.name, country: profile.country, jumps: e.jumps, secs: e.secs }) })
-      .then(r => r.json()).then(d => { $('rRank').textContent = d.ok ? (d.posicao ? `Você está em ${d.posicao}º no ranking da semana.` : 'Treino enviado ao ranking.') : (d.erro || 'Não foi possível enviar.'); })
-      .catch(() => { $('rRank').textContent = 'Sem conexão: o treino ficou salvo só no seu celular.'; });
-  } else if (profile.rank) $('rRank').textContent = 'Defina seu nome no Perfil para entrar no ranking.';
+  pending.push({ t: item.t, jumps: e.jumps, secs: e.secs }); store.set('rj.pending', pending);
+  $('rRank').textContent = 'Enviando…';
+  flush().then(d => {
+    $('rRank').textContent = d && d.posicao ? `Você está em ${d.posicao}º no ranking da semana.` : d && d.ok ? 'Treino salvo na sua conta.' : (pending.length ? 'Sem conexão: o treino será enviado quando a internet voltar.' : '');
+  });
+}
+async function flush() {
+  if (!token || !pending.length) return null;
+  let last = null;
+  for (const it of [...pending]) {
+    try {
+      const { ok, status, d } = await api('/api/score', { method: 'POST', body: { jumps: it.jumps, secs: it.secs, t: it.t, pub: profile.rank } });
+      if (ok) { last = d; pending = pending.filter(x => x !== it); }
+      else if (status >= 400 && status < 500 && status !== 401 && status !== 429) pending = pending.filter(x => x !== it); // dado inválido: descarta
+      else break;
+    } catch { break; }
+  }
+  store.set('rj.pending', pending); return last;
 }
 
 $('start').addEventListener('click', startWorkout);
@@ -289,5 +342,73 @@ $('rShare').addEventListener('click', async () => {
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden && W.running) finish(); });
 
-renderGoals(); renderProfile(); renderHome();
+
+// ---------- conta: entrar, criar conta, sair, excluir
+let modo = 'login';
+function abrirAuth() { $('auth').hidden = false; $('auth').className = modo === 'login' ? 'login' : ''; $('aErr').textContent = ''; }
+function modoAuth(m) {
+  modo = m; $('auth').className = m === 'login' ? 'login' : '';
+  document.querySelectorAll('.atab').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  $('aSubmit').textContent = m === 'login' ? 'Entrar' : 'Criar conta';
+  $('aPass').autocomplete = m === 'login' ? 'current-password' : 'new-password'; $('aErr').textContent = '';
+}
+document.querySelectorAll('.atab').forEach(b => b.addEventListener('click', () => modoAuth(b.dataset.m)));
+$('aCountry').innerHTML = Object.entries(PAISES).map(([c, n]) => `<option value="${c}">${flag(c)} ${n}</option>`).join('');
+$('authForm').addEventListener('submit', async ev => {
+  ev.preventDefault(); const err = t => { $('aErr').textContent = t; };
+  err(''); const email = $('aEmail').value.trim(), password = $('aPass').value;
+  if (!email || !password) return err('Preencha e-mail e senha.');
+  const body = { email, password };
+  if (modo === 'reg') {
+    Object.assign(body, { name: $('aName').value.trim(), country: $('aCountry').value, kg: +String($('aKg').value).replace(',', '.'), consent: $('aConsent').checked });
+    if (!body.name) return err('Escolha um nome para o ranking.');
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) return err('A senha precisa ter 8 caracteres ou mais, com letras e números.');
+    if (!body.consent) return err('Confirme que tem 18 anos ou mais e aceite a Política de Privacidade.');
+  }
+  $('aSubmit').disabled = true;
+  try {
+    const r = await api(modo === 'reg' ? '/api/register' : '/api/login', { method: 'POST', body });
+    if (!r.ok) return err(r.d.erro || 'Não foi possível continuar.');
+    token = r.d.token; store.set('rj.token', token); $('aPass').value = '';
+    await iniciar();
+  } catch { err('Sem conexão. Tente de novo.'); } finally { $('aSubmit').disabled = false; }
+});
+$('sChange').addEventListener('click', async () => {
+  const r = await api('/api/password', { method: 'POST', body: { senhaAtual: $('sOld').value, novaSenha: $('sNew').value } }).catch(() => null);
+  if (r && r.ok) { $('sOld').value = ''; $('sNew').value = ''; toast('Senha alterada. Os outros aparelhos foram desconectados.'); } else toast((r && r.d.erro) || 'Não foi possível alterar agora.');
+});
+$('sAll').addEventListener('click', async () => { try { await api('/api/logout-all', { method: 'POST' }); } catch {} sairLocal(); toast('Você saiu de todos os aparelhos.'); });
+$('sExport').addEventListener('click', async () => {
+  try {
+    const r = await fetch(API + '/api/export', { headers: { Authorization: 'Bearer ' + token } }); if (!r.ok) throw 0;
+    const blob = await r.blob(), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'meus-dados-ronald-jump.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch { toast('Não foi possível baixar seus dados agora.'); }
+});
+$('logout').addEventListener('click', async () => { try { await api('/api/logout', { method: 'POST' }); } catch {} sairLocal(); });
+$('delAcc').addEventListener('click', async () => {
+  const pw = $('dPass').value; if (!pw) return toast('Digite sua senha para confirmar.');
+  const r = await api('/api/account', { method: 'DELETE', body: { password: pw } }).catch(() => null);
+  if (r && r.ok) { $('dPass').value = ''; sairLocal(); toast('Conta excluída.'); } else toast((r && r.d.erro) || 'Não foi possível excluir agora.');
+});
+function aplicarUsuario(u) {
+  user = u; store.set('rj.user', u); profile.name = u.name; profile.country = u.country; profile.kg = u.kg; saveProfile();
+  $('pEmail').textContent = u.email; renderProfile();
+}
+async function iniciar() {
+  if (!token) return abrirAuth();
+  let r = null; try { r = await api('/api/me'); } catch {}
+  if (!r) { if (user) { aplicarUsuario(user); entrar(); } else abrirAuth(); return; } // sem internet: usa a conta guardada
+  if (!r.ok) return abrirAuth();
+  aplicarUsuario(r.d.user);
+  const srv = r.d.workouts.map(w => ({ t: w.t, jumps: w.jumps, secs: w.secs, kcal: +calcKcal(w.secs, r.d.user.kg).toFixed(1) }));
+  const ts = new Set(srv.map(x => x.t));
+  history = [...pending.filter(p => !ts.has(p.t)).map(p => ({ t: p.t, jumps: p.jumps, secs: p.secs, kcal: +calcKcal(p.secs, profile.kg).toFixed(1) })), ...srv].sort((a, b) => b.t - a.t);
+  store.set('rj.hist', history);
+  entrar(); flush();
+}
+function entrar() { $('auth').hidden = true; renderGoals(); renderProfile(); show('home'); }
+
+renderGoals(); renderProfile(); renderHome(); modoAuth('login');
+iniciar();
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));

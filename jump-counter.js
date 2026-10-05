@@ -8,6 +8,9 @@ export class JumpCounter {
     this.ema = null; this.base = null; this.state = 'ground';
     this.count = 0; this.peak = 0; this.armed = true; this.v = 0; this.pt = null; this.lastTake = -1e9; this.lastLand = 0; this.period = 600;
   }
+  rebase() { // muda a referência (ex.: aluno se aproximou) sem perder a contagem
+    this.ema = null; this.base = null; this.state = 'ground'; this.armed = true; this.v = 0; this.pt = null; this.peak = 0;
+  }
   update(y, scale, t) {
     let jumped = false;
     if (!(scale > 0)) return { jumped, count: this.count, state: this.state, h: 0 };
