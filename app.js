@@ -1,7 +1,19 @@
 import { JumpCounter, kcal as calcKcal, equivalente } from '/jump-counter.js';
 import { celebrate } from '/celebration.js';
 
-const $ = id => document.getElementById(id);
+// Se algum elemento da tela não existir (arquivos de versões diferentes misturados), o app não trava: usa um "vazio" inofensivo.
+const NADA = new Proxy(function () {}, { get: (t, k) => k === 'style' || k === 'dataset' ? {} : k === 'classList' ? { add() {}, remove() {}, toggle() {}, contains: () => false } : k === Symbol.toPrimitive ? () => '' : NADA, set: () => true, apply: () => NADA });
+const $ = id => document.getElementById(id) || NADA;
+
+// Confere se a página (index.html) e o código (app.js) são da mesma versão. Se não forem, limpa o cache e recarrega uma vez.
+const VERSAO = 4;
+(async () => {
+  const meta = Number(document.querySelector('meta[name="rj-versao"]')?.content || 0);
+  try { if (meta === VERSAO) { sessionStorage.removeItem('rj.recarregou'); return; } if (sessionStorage.getItem('rj.recarregou')) return; sessionStorage.setItem('rj.recarregou', '1'); } catch {}
+  try { for (const r of (await navigator.serviceWorker?.getRegistrations?.()) || []) await r.unregister(); } catch {}
+  try { for (const k of await caches.keys()) await caches.delete(k); } catch {}
+  location.reload();
+})();
 const store = {
   get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }

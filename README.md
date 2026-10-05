@@ -133,3 +133,5 @@ O app não exige mais o corpo inteiro na tela. Basta aparecer a **cabeça e os o
 
 Testado com sinais simulados (inclusive com mais ruído, como o sinal dos ombros) e na troca de modo. **Falta testar em celular real** de perto, com roupas e iluminações diferentes: salte 30 vezes contando de cabeça e compare.
 Se contar de menos, aumente a sensibilidade. Se contar de mais, diminua.
+
+**Atualizações sem travar (versão 4.1):** `index.html` e `app.js` precisam ser da mesma versão. O app agora confere isso sozinho (número em `rj-versao` no `index.html` e `VERSAO` no `app.js`): se estiverem diferentes, limpa o cache e recarrega uma vez, e elementos que faltarem na tela não derrubam mais o app. Ao lançar uma versão nova, troque o número nos dois lugares e em `sw.js` (`rj-vN`).
