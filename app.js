@@ -1868,7 +1868,8 @@ function detectar(ua = "", { standalone = false, maxTouch = 0, platform = "" } =
   const edge = /edg(?:e|a|ios)?\//i.test(ua), opera = /opr\/|opios/i.test(ua), firefox = /firefox|fxios/i.test(ua);
   const chrome = /chrome|crios|chromium/i.test(ua) && !edge && !opera && !firefox;
   const safari = /safari/i.test(ua) && !/chrome|crios|fxios|edgios|edg\/|opios|opr\/|android|gsa\//i.test(ua);
-  return { ios, android, desktop: !ios && !android, movel: ios || android, dentroDeApp, edge, firefox, chrome, safari, standalone };
+  const ipad = /ipad/i.test(ua) || platform === "MacIntel" && maxTouch > 1, samsung = /SamsungBrowser/i.test(ua);
+  return { ios, ipad, samsung, android, desktop: !ios && !android, movel: ios || android, dentroDeApp, edge, firefox, chrome, safari, standalone };
 }
 function guiaPara(inf, { pronto = false } = {}) {
   if (inf.standalone) return null;
@@ -1880,20 +1881,33 @@ function guiaPara(inf, { pronto = false } = {}) {
     passos: ["Toque em <b>\u22EF</b> (ou <b>\u22EE</b>) no canto da tela.", inf.ios ? "Escolha <b>Abrir no Safari</b>." : "Escolha <b>Abrir no Chrome</b> (ou <b>Abrir no navegador</b>).", "L\xE1, toque em <b>Transformar em app</b> de novo."]
   };
   if (pronto) return { tipo: "nativo", titulo: "Instalando\u2026", passos: [], copiar: false, qr: inf.desktop };
+  if (inf.ios && inf.safari) return {
+    tipo: "guia",
+    titulo: "Adicionar \xE0 tela inicial",
+    abrirCompartilhar: true,
+    seta: inf.ipad ? "cima-direita" : "baixo",
+    legenda: "Toque em Compartilhar",
+    copiar: false,
+    qr: false,
+    passos: ["Toque no bot\xE3o <b>Compartilhar</b> (o quadrado com uma seta para cima).", "Role a lista e toque em <b>Adicionar \xE0 Tela de In\xEDcio</b>.", "Toque em <b>Adicionar</b>.", "Abra o <b>Ronald Jump</b> pelo \xEDcone na tela inicial."]
+  };
   if (inf.ios) return {
     tipo: "guia",
-    titulo: inf.safari ? "Transformar em app (iPhone e iPad)" : "Transformar em app (iPhone e iPad)",
-    compartilhar: true,
-    copiar: !inf.safari,
+    titulo: "Adicionar \xE0 tela inicial",
+    seta: "cima-direita",
+    legenda: "Toque em Compartilhar",
+    copiar: true,
     qr: false,
-    passos: ["Na folha que abriu, role e toque em <b>Adicionar \xE0 Tela de In\xEDcio</b>.", "Confirme em <b>Adicionar</b>.", "Abra o <b>Ronald Jump</b> pelo \xEDcone e entre com a sua conta.", ...inf.safari ? [] : ["Se n\xE3o aparecer a op\xE7\xE3o, abra este link no <b>Safari</b>."]]
+    passos: ["Toque no bot\xE3o <b>Compartilhar</b> (quadrado com uma seta) na barra de endere\xE7o, no alto da tela.", "Escolha <b>Adicionar \xE0 Tela de In\xEDcio</b> e toque em <b>Adicionar</b>.", "Se essa op\xE7\xE3o n\xE3o aparecer neste navegador, abra o link no <b>Safari</b> (use <b>Copiar link</b>) e repita.", "Abra o <b>Ronald Jump</b> pelo \xEDcone na tela inicial."]
   };
   if (inf.android) return {
     tipo: "guia",
-    titulo: "Transformar em app (Android)",
+    titulo: "Adicionar \xE0 tela inicial",
+    seta: inf.samsung ? "baixo-direita" : "cima-direita",
+    legenda: inf.samsung ? "Toque no menu \u2261" : "Toque no menu \u22EE",
     copiar: false,
     qr: false,
-    passos: ["Toque no menu <b>\u22EE</b> do navegador.", "Escolha <b>Instalar app</b> ou <b>Adicionar \xE0 tela inicial</b>.", "Abra o <b>Ronald Jump</b> pelo \xEDcone e entre com a sua conta."]
+    passos: [inf.samsung ? "Toque no menu <b>\u2261</b>, no canto de baixo da tela." : "Toque no menu <b>\u22EE</b> (tr\xEAs pontinhos), no canto de cima da tela.", inf.samsung ? "Escolha <b>Adicionar p\xE1gina a</b> e depois <b>Tela inicial</b>." : "Escolha <b>Adicionar \xE0 tela inicial</b> (ou <b>Instalar app</b>).", "Confirme em <b>Adicionar</b>.", "Abra o <b>Ronald Jump</b> pelo \xEDcone na tela inicial."]
   };
   const passos = inf.chrome || inf.edge ? ["Na barra de endere\xE7o, clique no \xEDcone de <b>instalar</b> (um monitor com uma seta).", inf.edge ? "Ou abra o menu <b>\u22EF</b>, escolha <b>Aplicativos</b> e depois <b>Instalar este site como um aplicativo</b>." : "Ou abra o menu <b>\u22EE</b> e escolha <b>Instalar Ronald Jump</b>."] : inf.safari ? ["No menu <b>Arquivo</b>, escolha <b>Adicionar ao Dock</b>."] : ["Este navegador n\xE3o instala sites como app no computador. Use o <b>Chrome</b> ou o <b>Edge</b>, ou instale pelo celular (c\xF3digo ao lado)."];
   return { tipo: "guia", titulo: "Instalar no computador ou no celular", passos, copiar: true, qr: true };
@@ -1926,6 +1940,38 @@ var infoAtual = () => detectar(navigator.userAgent, {
   platform: navigator.platform || ""
 });
 var jaInstalado = () => infoAtual().standalone;
+function mostrarSeta(pos, legenda) {
+  if (typeof document === "undefined" || !pos) return;
+  document.getElementById("rj-seta")?.remove();
+  const o = document.createElement("div");
+  o.id = "rj-seta";
+  o.setAttribute("role", "presentation");
+  o.style.cssText = "position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,.55);cursor:pointer;-webkit-tap-highlight-color:transparent";
+  const cima = pos.startsWith("cima"), dir = pos.endsWith("direita");
+  const caixa = document.createElement("div");
+  caixa.style.cssText = `position:absolute;${cima ? "top:108px" : "bottom:128px"};${dir ? "right:16px" : "left:50%;transform:translateX(-50%)"};max-width:78vw;background:#e8c231;color:#0a0a0a;font:700 18px/1.25 system-ui,sans-serif;padding:12px 16px;border-radius:14px;text-align:center;box-shadow:0 8px 28px #000a`;
+  caixa.textContent = legenda || "Toque aqui";
+  const peq = document.createElement("div");
+  peq.textContent = "(toque na tela para fechar)";
+  peq.style.cssText = "font:400 13px system-ui,sans-serif;margin-top:4px;opacity:.75";
+  caixa.appendChild(peq);
+  o.appendChild(caixa);
+  const seta = document.createElement("div");
+  seta.innerHTML = `<svg width="64" height="64" viewBox="0 0 24 24" fill="#e8c231" aria-hidden="true"><path d="${cima ? "M12 3 3 14h6v7h6v-7h6z" : "M12 21 21 10h-6V3H9v7H3z"}"/></svg>`;
+  seta.style.cssText = `position:absolute;${cima ? "top:36px" : "bottom:56px"};${dir ? "right:" + (pos === "baixo-direita" ? "22px" : "14px") : "left:50%;margin-left:-32px"};filter:drop-shadow(0 4px 10px #000)`;
+  o.appendChild(seta);
+  document.body.appendChild(o);
+  try {
+    seta.animate([{ transform: "translateY(0)" }, { transform: `translateY(${cima ? -16 : 16}px)` }], { duration: 650, iterations: Infinity, direction: "alternate", easing: "ease-in-out" });
+  } catch {
+  }
+  const sumir = () => {
+    o.remove();
+    clearTimeout(t);
+  };
+  const t = setTimeout(sumir, 9e3);
+  o.addEventListener("click", sumir);
+}
 async function instalarAgora(link) {
   const inf = infoAtual(), guia = guiaPara(inf, { pronto: !!promptEvt });
   if (!guia) return null;
@@ -1938,13 +1984,13 @@ async function instalarAgora(link) {
     promptEvt = null;
     return guia.qr ? { ...guia, titulo: "Quer instalar tamb\xE9m no celular?", passos: ["Abra a c\xE2mera do celular e aponte para o c\xF3digo."], copiar: true } : { ...guia, feito: true };
   }
-  if (guia.compartilhar && navigator.share) {
+  if (guia.abrirCompartilhar && navigator.share) {
     try {
-      navigator.share({ title: "Ronald Jump", text: "Instale o Ronald Jump", url: link }).catch(() => {
+      navigator.share({ title: "Ronald Jump", text: "Adicione o Ronald Jump \xE0 tela inicial", url: link }).catch(() => {
       });
     } catch {
     }
-  }
+  } else if (guia.seta) mostrarSeta(guia.seta, guia.legenda);
   return guia;
 }
 function renderGuia(el, guia, link) {
@@ -1969,6 +2015,20 @@ function renderGuia(el, guia, link) {
     s.textContent = "Aponte a c\xE2mera do celular para o c\xF3digo";
     w.appendChild(s);
     el.appendChild(w);
+  }
+  if (guia.abrirCompartilhar && typeof navigator !== "undefined" && navigator.share) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ig-copiar";
+    b.textContent = "Abrir o menu Compartilhar";
+    b.onclick = () => {
+      try {
+        navigator.share({ title: "Ronald Jump", text: "Adicione o Ronald Jump \xE0 tela inicial", url: link }).catch(() => {
+        });
+      } catch {
+      }
+    };
+    el.appendChild(b);
   }
   if (guia.copiar) {
     const b = document.createElement("button");
@@ -2220,7 +2280,14 @@ var NADA = new Proxy(function() {
 }, toggle() {
 }, contains: () => false } : k === Symbol.toPrimitive ? () => "" : NADA, set: () => true, apply: () => NADA });
 var $ = (id) => document.getElementById(id) || NADA;
-var VERSAO = 17;
+var VERSAO = 19;
+var MEU_BUILD = (() => {
+  try {
+    return new URL(import.meta.url).searchParams.get("v") || "";
+  } catch {
+    return "";
+  }
+})();
 (async () => {
   const meta = Number(document.querySelector('meta[name="rj-versao"]')?.content || 0);
   try {
@@ -3428,10 +3495,10 @@ iniciar();
 var LINK_APP = location.origin + "/";
 function atualizarInstalacao() {
   const inst = jaInstalado(), fechadoEm = +store.get("rj.ctaAppFechado", 0), inf = infoAtual();
-  $("instStatus").textContent = inst ? "\u2705 App instalado neste aparelho" : inf.desktop ? "No computador ou no celular (com c\xF3digo QR)" : "Tela cheia, direto da tela inicial";
+  $("instStatus").textContent = inst ? "\u2705 App instalado neste aparelho" : inf.desktop ? "No computador ou no celular (com c\xF3digo QR)" : "\xCDcone na tela inicial, abre como app";
   $("instBtn").hidden = inst;
   $("ctaApp").hidden = inst || Date.now() - fechadoEm < 7 * 864e5;
-  $("ctaAppTxt").textContent = inf.desktop ? "Instale no computador ou escaneie o QR para usar no celular." : "Abre mais r\xE1pido e em tela cheia.";
+  $("ctaAppTxt").textContent = inf.desktop ? "Instale no computador ou escaneie o QR para usar no celular." : "Abre como app, sem digitar o endere\xE7o.";
 }
 async function abrirInstalar() {
   const g = await instalarAgora(LINK_APP);
@@ -3459,6 +3526,7 @@ window.addEventListener("rj-instalado", () => {
 });
 atualizarInstalacao();
 var versaoNova = 0;
+var buildNovo = "";
 var novidades = [];
 function mostrarAtualizacao(estadoAtu) {
   const tem = estadoAtu === "nova";
@@ -3479,13 +3547,16 @@ async function verificarAtualizacao() {
   try {
     const r = await fetch(API + "/api/health", { cache: "no-store" });
     const h = await r.json(), sv = +h.versao || 0;
-    if (sv > VERSAO) {
+    const nova = sv > VERSAO || sv === VERSAO && !!h.build && !!MEU_BUILD && h.build !== MEU_BUILD;
+    if (nova) {
       versaoNova = sv;
+      buildNovo = h.build || "";
       novidades = Array.isArray(h.novidades) ? h.novidades.slice(0, 6).map((x) => String(x).slice(0, 120)) : [];
       mostrarAtualizacao("nova");
       return "nova";
     }
     versaoNova = 0;
+    buildNovo = "";
     novidades = [];
     mostrarAtualizacao("ok");
     return "ok";
@@ -3498,6 +3569,11 @@ async function atualizarApp() {
   if (W.running) return toast("Termine o treino antes de atualizar.");
   toast("Atualizando\u2026");
   try {
+    sessionStorage.setItem("rj.esperaBuild", buildNovo || "");
+    sessionStorage.setItem("rj.esperaVersao", String(versaoNova || ""));
+  } catch {
+  }
+  try {
     for (const reg of await navigator.serviceWorker?.getRegistrations?.() || []) await reg.unregister();
   } catch {
   }
@@ -3505,8 +3581,27 @@ async function atualizarApp() {
     for (const k of await caches.keys()) await caches.delete(k);
   } catch {
   }
-  location.reload();
+  location.replace("/?u=" + Date.now());
 }
+(function conferirAtualizacao() {
+  try {
+    if (/[?&]u=\d+/.test(location.search)) window.history.replaceState(null, "", location.pathname);
+  } catch {
+  }
+  let build = "", versao = "";
+  try {
+    build = sessionStorage.getItem("rj.esperaBuild") || "";
+    versao = sessionStorage.getItem("rj.esperaVersao") || "";
+    sessionStorage.removeItem("rj.esperaBuild");
+    sessionStorage.removeItem("rj.esperaVersao");
+  } catch {
+  }
+  if (!build && !versao) return;
+  setTimeout(() => {
+    const ok = build && MEU_BUILD ? build === MEU_BUILD : +versao ? VERSAO >= +versao : true;
+    toast(ok ? `Atualizado! Voc\xEA est\xE1 na vers\xE3o ${VERSAO}.` : "A vers\xE3o nova ainda n\xE3o chegou neste aparelho. Feche o app por completo e abra de novo.");
+  }, 1800);
+})();
 $("btnAtualizar").addEventListener("click", async () => {
   if (versaoNova) return atualizarApp();
   mostrarAtualizacao("verificando");

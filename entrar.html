@@ -54,7 +54,8 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .cta .x2{background:transparent;color:var(--ink);font-size:24px;line-height:1;padding:4px 6px;min-width:32px;min-height:44px}
 .aviso{background:#3a2208;border:1px solid var(--orange);border-radius:14px;padding:12px 14px;margin:0 0 16px;text-align:left;font-size:14px;color:#ffd9c2}
 .aviso button{margin-top:8px;border:0;border-radius:999px;padding:10px 14px;background:var(--orange);color:var(--bone);font-weight:700;cursor:pointer;min-height:44px}
-.box .copiar{margin-top:10px;border:2px solid var(--yellow);border-radius:999px;background:transparent;color:var(--yellow);font-weight:700;padding:10px 14px;cursor:pointer;min-height:44px}
+.ig-qr{text-align:center;margin:14px 0 6px}.ig-qr svg{width:190px;height:190px;border-radius:12px;background:#fff}.ig-qr small{display:block;color:#a49f95;font-size:13px;margin-top:6px}
+.box .ig-copiar,.box .copiar{margin-top:10px;border:2px solid var(--yellow);border-radius:999px;background:transparent;color:var(--yellow);font-weight:700;padding:10px 14px;cursor:pointer;min-height:44px}
 </style>
 </head>
 <body>
@@ -66,8 +67,8 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
   <div class="aviso" id="avisoApp" hidden>Você abriu o link dentro de outro app (Instagram, Facebook etc.). Para instalar o Ronald Jump, abra no <b>Safari</b> ou no <b>Chrome</b>: toque em <b>⋯</b> ou <b>⋮</b> e escolha <b>Abrir no navegador</b>.<br><button id="copiarAviso" type="button">Copiar link</button></div>
   <div class="aviso" id="avisoDados" hidden><b>Cadastros pausados.</b> O servidor ainda está sendo configurado para guardar as contas com segurança. Tente de novo mais tarde.</div>
   <div class="cta" id="cta" hidden>
-    <div class="t"><b>Use como app no celular</b>Instale em 1 toque, sem loja.</div>
-    <button class="go2" id="btnApp" type="button">Transformar em app</button>
+    <div class="t"><b>Adicione à tela inicial</b><span id="ctaTxt">Abre como app, sem digitar o endereço.</span></div>
+    <button class="go2" id="btnApp" type="button">Adicionar</button>
     <button class="x2" id="ctaFechar" type="button" aria-label="Agora não">×</button>
   </div>
 
@@ -92,18 +93,14 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
     <p id="erro" role="alert"></p>
   </form>
 
-  <section class="box" id="guia" hidden aria-live="polite">
-    <h2 id="guiaTit">Transformar em app</h2>
-    <ol id="guiaPassos"></ol>
-    <button class="copiar" id="copiar" type="button" hidden>Copiar link</button>
-    <p class="peq" id="guiaNota">Depois de instalar, abra o app pelo ícone e entre de novo: o app instalado guarda o login separado do navegador.</p>
-  </section>
+  <section class="box" id="guia" hidden aria-live="polite"></section>
+  <p class="peq" id="guiaNota" hidden></p>
 
   <button class="semconta" id="semConta" type="button">Usar sem conta</button>
   <p class="peq">Sem conta você usa o app neste celular, mas não entra no ranking.</p>
   <p class="peq"><a href="/estavel/">Versão estável (sem conta)</a></p>
 </main>
-<script src="/config.js"></script>
-<script src="/entrar.js"></script>
+<script src="/config.js?v=__V__"></script>
+<script src="/entrar.js?v=__V__"></script>
 </body>
 </html>

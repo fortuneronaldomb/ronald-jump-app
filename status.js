@@ -21,6 +21,10 @@
         passos([]);
         if (recente) $('resultado').className = 'card aviso';
       }
+      if (h.arquivosDesatualizados && h.duravel !== false && h.dados !== undefined) {
+        caixa('aviso', 'ARQUIVOS DE VERSÕES DIFERENTES', 'O servidor.js é da versão ' + h.versaoServidor + ', mas o app (app.js) é da versão ' + h.versao + '. Alguns arquivos não foram enviados ao GitHub, e por isso a atualização do app pode não chegar.');
+        passos(['No GitHub, envie <b>todos os arquivos</b> da atualização (Add file, Upload files), inclusive <b>app.js</b> e <b>server.js</b>.', 'Espere o Railway terminar de publicar.', 'Volte aqui e toque em <b>Verificar de novo</b>.']);
+      }
     }).catch(function () { caixa('ruim', 'Não consegui falar com o servidor', 'Confira a internet e se o Railway está com o serviço "Online".'); linhas([]); });
   }
   $('de-novo').addEventListener('click', checar); checar();

@@ -33,11 +33,24 @@ const DATA_DIR = (EM_RAILWAY && VOLUME) ? (process.env.DATA_DIR && dentroDe(proc
 const DATA_DIR_IGNORADO = EM_RAILWAY && VOLUME && process.env.DATA_DIR && !dentroDe(process.env.DATA_DIR, VOLUME);
 let RELEASE = ''; try { RELEASE = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version || ''; } catch {}
 const NO_AR_DESDE = new Date().toISOString();
+// Identificação da versão que está de fato no servidor: lida dos próprios arquivos, não de um número digitado.
+const ARQS_BUILD = ['app.js', 'entrar.js', 'style.css', 'boot.js', 'config.js'];
+const achar = nome => [path.join(PUB, nome), path.join(ROOT, nome)].find(f => { try { return fs.statSync(f).isFile(); } catch { return false; } });
+let bCache = { chave: '', id: '', versao: 0 };
+function infoBuild() { // muda sempre que qualquer arquivo do app mudar; serve para renovar o cache dos celulares sem depender de ninguém lembrar de subir o número
+  const fs_ = ARQS_BUILD.map(achar), chave = fs_.map(f => { try { const st = fs.statSync(f); return f + st.mtimeMs + ':' + st.size; } catch { return 'x'; } }).join('|');
+  if (chave !== bCache.chave) {
+    const h = crypto.createHash('sha1'); let versao = 0;
+    for (const f of fs_) { try { const b = fs.readFileSync(f); h.update(b); if (path.basename(f) === 'app.js') { const m = /VERSAO = (\d+)/.exec(b.toString('utf8', 0, 400000)); if (m) versao = +m[1]; } } catch {} }
+    bCache = { chave, id: h.digest('hex').slice(0, 10), versao };
+  }
+  return bCache;
+}
 const PORT = process.env.PORT || 3000;
 const FLAT = !fs.existsSync(PUB); // sem pasta public/ = modo "plano" (upload sem pastas no site do GitHub)
-const VERSAO_APP = 17;
+const VERSAO_APP = 19;
 // O que mudou nesta versão (aparece no app quando há atualização). Atualize a cada versão nova.
-const NOVIDADES = ['Sinal verde (contando) e vermelho (fora da área, não está contando) durante todo o treino', 'Aviso sonoro e vibração ao sair da área']; 
+const NOVIDADES = ['Botão Atualizar mais confiável: carrega a versão nova de verdade, em qualquer celular', 'Diagnóstico de arquivos desatualizados em /status']; 
 const MODEL_FILE = path.join(PUB, 'model', 'pose_landmarker_lite.task');
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
 
@@ -375,7 +388,7 @@ const srv = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
-    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: VERSAO_APP, novidades: NOVIDADES, hora: new Date().toISOString(), dados: ONDE, duravel: DURAVEL, volumeEncontrado: !!VOLUME, discoCriadoEm, noArDesde: NO_AR_DESDE, release: RELEASE });
+    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: infoBuild().versao || VERSAO_APP, build: infoBuild().id, versaoServidor: VERSAO_APP, arquivosDesatualizados: !!infoBuild().versao && infoBuild().versao !== VERSAO_APP, novidades: NOVIDADES, hora: new Date().toISOString(), dados: ONDE, duravel: DURAVEL, volumeEncontrado: !!VOLUME, discoCriadoEm, noArDesde: NO_AR_DESDE, release: RELEASE });
     if (limited('api:' + ip, 300, 6e4)) return json(res, 429, { erro: 'Muitas requisições. Aguarde um instante.' });
     try { return await api(req, res, url, ip); }
     catch (e) { return json(res, e && e.message === 'grande' ? 413 : 400, { erro: 'Requisição inválida.' }); }
@@ -396,8 +409,18 @@ const srv = http.createServer(async (req, res) => {
     candidates.push(path.join(ROOT, base));
   }
   const send = (f, st) => {
-    const longo = /^\/(vendor|icons|model)\//.test(p); // só bibliotecas, ícones e modelo ficam em cache longo; o resto sempre confere versão nova
-    res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream', 'Content-Length': st.size, 'Cache-Control': longo ? 'public, max-age=604800' : 'no-cache' });
+    const ext = path.extname(f), tipo = MIME[ext] || 'application/octet-stream';
+    if (/^index\.html$|^entrar\.html$/.test(path.basename(f)) && req.method !== 'HEAD') { // páginas: apontam para os arquivos da versão atual (?v=<build>) e nunca ficam em cache
+      return fs.readFile(f, 'utf8', (e, html) => {
+        if (e) return json(res, 404, { erro: 'Não encontrado' });
+        const corpo = Buffer.from(html.replace(/\?v=__V__/g, '?v=' + infoBuild().id), 'utf8');
+        res.writeHead(200, { 'Content-Type': tipo, 'Content-Length': corpo.length, 'Cache-Control': 'no-store' }); res.end(corpo);
+      });
+    }
+    const longo = /^\/(vendor|icons|model)\//.test(p);                                  // bibliotecas, ícones e modelo: cache longo
+    const versionado = /\.(js|css|mjs)$/.test(f) && /^[a-f0-9]{6,}$/.test(url.searchParams.get('v') || ''); // ?v=<build>: a URL muda quando o arquivo muda
+    const cc = (longo || versionado) ? (versionado ? 'public, max-age=31536000, immutable' : 'public, max-age=604800') : (/\.html$/.test(f) ? 'no-store' : 'no-cache');
+    res.writeHead(200, { 'Content-Type': tipo, 'Content-Length': st.size, 'Cache-Control': cc });
     if (req.method === 'HEAD') return res.end();
     fs.createReadStream(f).pipe(res);
   };
