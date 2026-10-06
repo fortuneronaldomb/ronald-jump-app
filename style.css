@@ -143,6 +143,10 @@ details.sec summary{color:var(--yellow)}
 .estado i{font-style:normal;width:54px;height:54px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font:900 30px/1 system-ui,sans-serif}
 .estado.ok i{color:#1fbf55;padding-left:5px}.estado.ruim i{color:#e5392b}
 .estado b{font:900 26px/1 var(--disp);text-transform:uppercase;letter-spacing:.05em}
+/* indicador compacto (contando) e longo (fora da área) */
+.estado.compacto{padding:6px 16px 6px 8px;gap:8px;top:calc(env(safe-area-inset-top,0px) + 84px)}
+.estado.compacto i{width:26px;height:26px;font-size:15px;padding:0!important}.estado.compacto b{font-size:19px}
+.estado.longo{white-space:normal;max-width:92vw;align-items:center}.estado.longo b{font-size:21px;line-height:1.05}
 /* calorias em destaque */
 .kcalCard{margin:10px auto 0;max-width:340px;background:#000b;border:2px solid var(--orange);border-radius:18px;padding:10px 16px;box-shadow:0 0 22px #d4511a55}
 .kcalCard .kn{font-size:14px;color:var(--bone)}.kcalCard .kn b{font:900 40px/1 var(--disp);color:var(--yellow)}
@@ -187,3 +191,23 @@ body.convidado .so-conta{display:none!important}body:not(.convidado) .so-convida
 .conta-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--char);border:1.5px solid var(--mid);border-radius:16px;padding:12px 14px;margin:6px 0 14px}
 .conta-topo b{display:block;font-size:17px}.conta-topo small{display:block;color:var(--muted);font-size:13px;word-break:break-all}
 .conta-topo .btn{width:auto;margin-top:0;flex:none;padding:12px 18px}
+
+/* atualização */
+.atu-card{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--char);border:1.5px solid var(--mid);border-radius:16px;padding:12px 14px;margin:0 0 10px}
+.atu-card b{display:block;font-size:17px}.atu-card small{display:block;color:var(--muted);font-size:13px}
+.atu-card .btn{width:auto;margin-top:0;flex:none;padding:12px 16px}
+.novidades{margin:0 0 12px;padding:10px 16px 10px 32px;background:#241f0a;border:1.5px solid var(--yellow);border-radius:14px;font-size:14px;color:var(--bone)}
+.avisoAtu{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--yellow);color:var(--ink);border-radius:14px;padding:10px 12px 10px 14px;margin:0 0 12px;font-weight:700;font-size:14px}
+.avisoAtu .btn{width:auto;margin-top:0;background:var(--ink);color:var(--yellow);padding:10px 16px;flex:none}
+
+/* instalar como app */
+.ctaApp{display:flex;align-items:center;gap:10px;background:var(--yellow);color:var(--ink);border-radius:16px;padding:10px 8px 10px 14px;margin:0 0 12px}
+.ctaApp .t{flex:1;font-size:13px;line-height:1.3}.ctaApp .t b{display:block;font-size:16px}
+.ctaApp .btn{width:auto;margin-top:0;background:var(--ink);color:var(--yellow);padding:11px 16px;flex:none}
+.ctaApp .x2{border:0;background:transparent;color:var(--ink);font-size:26px;line-height:1;padding:4px 8px;min-height:44px;cursor:pointer}
+#instSheet{position:fixed;inset:0;z-index:85;background:rgba(0,0,0,.82);display:flex;align-items:flex-end;justify-content:center;padding:0 12px calc(env(safe-area-inset-bottom,0px) + 12px)}
+#instSheet .sheet{width:100%;max-width:440px;background:#141414;border:1px solid var(--mid);border-radius:22px;padding:18px 18px 8px;max-height:88vh;overflow-y:auto}
+#instGuia h2{font:900 28px/1 var(--disp);text-transform:uppercase;color:var(--yellow);margin:0 0 8px}
+#instGuia ol{margin:8px 0;padding-left:22px;color:#e6e0d4;font-size:15px}#instGuia li{margin:6px 0}
+.ig-qr{text-align:center;margin:14px 0 6px}.ig-qr svg{width:190px;height:190px;border-radius:12px;background:#fff}.ig-qr small{display:block;color:var(--muted);font-size:13px;margin-top:6px}
+.ig-copiar{margin:8px 0 4px;border:2px solid var(--yellow);border-radius:999px;background:transparent;color:var(--yellow);font-weight:700;padding:10px 16px;cursor:pointer;min-height:44px}

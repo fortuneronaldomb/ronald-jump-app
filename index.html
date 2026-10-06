@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Ronald Jump</title>
 <meta name="theme-color" content="#0a0a0a">
-<meta name="rj-versao" content="14">
+<meta name="rj-versao" content="17">
 <meta name="description" content="Conte seus saltos pela câmera, veja as calorias e entre no ranking.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -23,6 +23,8 @@
 <main id="screens">
 
   <section id="home" class="screen on">
+    <div class="avisoAtu" id="avisoAtu" hidden><span>🔄 Nova versão disponível. Você continua logado.</span><button class="btn small" id="avisoAtuBtn" type="button">Atualizar</button></div>
+    <div class="ctaApp" id="ctaApp" hidden><div class="t"><b>Transforme em app</b><span id="ctaAppTxt">Abre mais rápido e em tela cheia.</span></div><button class="btn small" id="ctaAppBtn" type="button">Instalar</button><button class="x2" id="ctaAppX" type="button" aria-label="Agora não">×</button></div>
     <header class="top"><img src="/icons/logo.png" alt="" width="40" height="40"><b class="wordmark">Ronald Jump</b><i class="avatar" id="hAvatar" aria-hidden="true"></i></header>
     <div class="hero">
       <div class="orbit"><i class="ring"></i><i class="ring b"></i><img src="/icons/logo.png" alt="Logo Ronald Jump"></div>
@@ -79,6 +81,9 @@
     </div>
     <label class="switch so-conta" id="pFotoRankLbl" hidden><input type="checkbox" id="pFotoRank"><span>Mostrar minha foto no ranking (outras pessoas poderão ver)</span></label>
     <div class="conta-topo so-conta"><div><b id="pNomeTopo"></b><small id="pEmailTopo"></small></div><button class="btn small ghost" id="logout2" type="button">Sair da conta</button></div>
+    <div class="atu-card"><div><b id="versaoApp">Versão 17</b><small id="atuStatus">Verificando…</small></div><button class="btn small" id="btnAtualizar" type="button">Verificar atualização</button></div>
+    <ul class="novidades" id="atuNovidades" hidden></ul>
+    <div class="atu-card" id="instCard"><div><b>Instalar o app</b><small id="instStatus"></small></div><button class="btn small" id="instBtn" type="button">Instalar</button></div>
     <div class="so-convidado aviso-conta"><b>Você está usando sem conta.</b> Seus treinos ficam só neste celular. Crie uma conta para entrar no ranking e guardar tudo na nuvem.<a class="btn small" href="/entrar.html">Entrar ou criar conta</a></div>
     <p class="muted so-conta" id="pEmail"></p>
     <p class="muted" id="pPremios"></p>
@@ -103,7 +108,6 @@
       <button class="btn ghost" id="sAll" type="button">Sair de todos os aparelhos</button>
       <button class="btn ghost" id="sExport" type="button">Baixar meus dados</button>
     </details>
-    <p class="muted" id="versaoApp">Versão 14</p>
     <p class="muted"><a href="/estavel/">Abrir a versão estável (sem conta)</a></p>
     <details class="danger so-conta"><summary>Excluir minha conta</summary>
       <p class="muted">Apaga sua conta, seus treinos e seu lugar no ranking. Não dá para desfazer.</p>
@@ -203,6 +207,9 @@
     </form>
     <p class="muted"><a href="/estavel/">Problemas para entrar? Use a versão estável (sem conta)</a></p>
   </div>
+</div>
+<div id="instSheet" hidden role="dialog" aria-label="Instalar o app">
+  <div class="sheet"><div id="instGuia"></div><button class="btn" id="instFechar" type="button">Fechar</button></div>
 </div>
 <div id="boas" hidden role="dialog" aria-label="Boas-vindas ao Ronald Jump">
   <div class="cx">

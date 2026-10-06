@@ -35,7 +35,9 @@ let RELEASE = ''; try { RELEASE = JSON.parse(fs.readFileSync(path.join(ROOT, 'pa
 const NO_AR_DESDE = new Date().toISOString();
 const PORT = process.env.PORT || 3000;
 const FLAT = !fs.existsSync(PUB); // sem pasta public/ = modo "plano" (upload sem pastas no site do GitHub)
-const VERSAO_APP = 14;
+const VERSAO_APP = 17;
+// O que mudou nesta versão (aparece no app quando há atualização). Atualize a cada versão nova.
+const NOVIDADES = ['Sinal verde (contando) e vermelho (fora da área, não está contando) durante todo o treino', 'Aviso sonoro e vibração ao sair da área']; 
 const MODEL_FILE = path.join(PUB, 'model', 'pose_landmarker_lite.task');
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
 
@@ -373,7 +375,7 @@ const srv = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
-    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: VERSAO_APP, hora: new Date().toISOString(), dados: ONDE, duravel: DURAVEL, volumeEncontrado: !!VOLUME, discoCriadoEm, noArDesde: NO_AR_DESDE, release: RELEASE });
+    if (url.pathname === '/api/health') return json(res, 200, { ok: true, versao: VERSAO_APP, novidades: NOVIDADES, hora: new Date().toISOString(), dados: ONDE, duravel: DURAVEL, volumeEncontrado: !!VOLUME, discoCriadoEm, noArDesde: NO_AR_DESDE, release: RELEASE });
     if (limited('api:' + ip, 300, 6e4)) return json(res, 429, { erro: 'Muitas requisições. Aguarde um instante.' });
     try { return await api(req, res, url, ip); }
     catch (e) { return json(res, e && e.message === 'grande' ? 413 : 400, { erro: 'Requisição inválida.' }); }

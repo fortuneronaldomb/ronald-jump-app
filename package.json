@@ -1,6 +1,6 @@
 {
   "name": "ronald-jump-app",
-  "version": "1.14.0",
+  "version": "1.17.0",
   "description": "Ronald Jump: contador de saltos pela câmera (PWA) com conta, ranking e comemoração",
   "type": "module",
   "private": true,
