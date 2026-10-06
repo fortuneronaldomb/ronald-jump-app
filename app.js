@@ -72,22 +72,28 @@ var JumpCounter = class {
 var MET_PULO = 10;
 var kcal = (seg, kg) => MET_PULO * kg * (seg / 3600);
 var COMIDAS = [
-  { n: "brigadeiro", k: 70 },
-  { n: "p\xE3o de queijo", k: 90 },
-  { n: "lata de refrigerante", k: 140 },
-  { n: "coxinha", k: 250 },
-  { n: "fatia de pizza", k: 270 },
-  { n: "hamb\xFArguer", k: 500 }
+  // kcal aproximadas por unidade
+  { e: "\u{1F347}", s: "uva", p: "uvas", k: 3, v: "comer" },
+  { e: "\u{1F353}", s: "morango", p: "morangos", k: 5, v: "comer" },
+  { e: "\u{1F36A}", s: "biscoito", p: "biscoitos", k: 22, v: "comer" },
+  { e: "\u{1F35E}", s: "fatia de p\xE3o", p: "fatias de p\xE3o", k: 65, v: "comer" },
+  { e: "\u{1F36B}", s: "brigadeiro", p: "brigadeiros", k: 70, v: "comer" },
+  { e: "\u{1F34C}", s: "banana", p: "bananas", k: 90, v: "comer" },
+  { e: "\u{1F9C0}", s: "p\xE3o de queijo", p: "p\xE3es de queijo", k: 95, v: "comer" },
+  { e: "\u{1F964}", s: "lata de refrigerante", p: "latas de refrigerante", k: 140, v: "tomar" },
+  { e: "\u{1F357}", s: "coxinha", p: "coxinhas", k: 250, v: "comer" },
+  { e: "\u{1F355}", s: "fatia de pizza", p: "fatias de pizza", k: 270, v: "comer" },
+  { e: "\u{1F354}", s: "hamb\xFArguer", p: "hamb\xFArgueres", k: 500, v: "comer" }
 ];
-function equivalente(k) {
-  if (k < 35) return "quase um brigadeiro";
-  let c = COMIDAS[0];
-  for (const f of COMIDAS) if (k >= f.k * 0.8) c = f;
-  const q = k / c.k;
-  const txt = q < 1.5 ? "cerca de 1" : "cerca de " + Math.round(q);
-  const pl = q < 1.5 ? c.n : c.n === "p\xE3o de queijo" ? "p\xE3es de queijo" : c.n === "lata de refrigerante" ? "latas de refrigerante" : c.n === "fatia de pizza" ? "fatias de pizza" : c.n + "s";
-  return `${txt} ${pl}`;
+function comida(k) {
+  if (!(k >= 1.5)) return null;
+  let f = COMIDAS[0];
+  for (const c of COMIDAS) if (k >= c.k) f = c;
+  const n = Math.max(1, Math.round(k / f.k)), nome = n === 1 ? f.s : f.p;
+  return { emoji: f.e, n, nome, verbo: f.v, texto: `D\xE1 para ${f.v} ${n} ${nome}!` };
 }
+var PREMIOS = { 50: ["\u{1F949}", "Medalha de Bronze"], 100: ["\u{1F948}", "Medalha de Prata"], 200: ["\u{1F947}", "Medalha de Ouro"], 300: ["\u{1F3C6}", "Trof\xE9u"], 500: ["\u{1F48E}", "Diamante"], 1e3: ["\u{1F451}", "Coroa de Lenda"] };
+var premio = (n) => PREMIOS[n] ? { emoji: PREMIOS[n][0], nome: PREMIOS[n][1] } : { emoji: "\u2B50", nome: "+1 estrela" };
 
 // src/celebration.js
 var fxc = document.getElementById("fx");
@@ -223,11 +229,13 @@ function som(a, tier) {
   notas.forEach((f, i) => tone(a, f, base + i * 0.07, 0.4));
   for (let i = 0; i < tier * 5; i++) tone(a, 2600 + Math.random() * 1400, base + 0.3 + i * 0.06, 0.09, "sine", 0.06);
 }
-function celebrate(n, { actx: actx2 = null, vibrate = false } = {}) {
+function celebrate(n, { actx: actx2 = null, vibrate = false, premio: premio2 = null } = {}) {
   const tier = nivel(n);
   banner.className = "t" + tier;
   banner.querySelector(".title").textContent = ["COMBO!", "JACKPOT!", "MEGA JACKPOT!"][tier - 1];
   banner.querySelector(".sub").textContent = n + " saltos";
+  const pr = banner.querySelector(".premio");
+  if (pr) pr.textContent = premio2 ? premio2.emoji + " " + premio2.nome : "";
   reels(n);
   banner.hidden = false;
   void banner.offsetWidth;
@@ -318,7 +326,7 @@ var NADA = new Proxy(function() {
 }, toggle() {
 }, contains: () => false } : k === Symbol.toPrimitive ? () => "" : NADA, set: () => true, apply: () => NADA });
 var $ = (id) => document.getElementById(id) || NADA;
-var VERSAO = 11;
+var VERSAO = 12;
 (async () => {
   const meta = Number(document.querySelector('meta[name="rj-versao"]')?.content || 0);
   try {
@@ -364,7 +372,7 @@ var dayKey = (d) => {
   const x = new Date(d);
   return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
 };
-var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, dist: "corpo", distV: 0, distCustom: null, dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
+var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, dist: "corpo", distV: 0, distCustom: null, premios: 0, dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
 if (!profile.distV) {
   if (profile.dist !== "custom") profile.dist = "corpo";
   profile.distV = 1;
@@ -419,26 +427,53 @@ function show(id) {
   if (id === "rank") loadRank();
 }
 document.querySelectorAll("#nav button").forEach((b) => b.addEventListener("click", () => show(b.dataset.s)));
-var GOALS = [["free", "Livre"], ["t60", "1 min"], ["t180", "3 min"], ["t300", "5 min"], ["t600", "10 min"], ["k50", "50 kcal"], ["k100", "100 kcal"]];
+var GRUPOS = [
+  ["Tempo", [["free", "Livre"], ["t60", "1 min"], ["t180", "3 min"], ["t300", "5 min"], ["t600", "10 min"]]],
+  ["Saltos", [["j100", "100"], ["j200", "200"], ["j300", "300"], ["j500", "500"], ["j1000", "1.000"]]],
+  ["Calorias", [["k50", "50 kcal"], ["k100", "100 kcal"]]]
+];
 function renderGoals() {
   const box = $("goals");
   box.innerHTML = "";
-  for (const [id, label] of GOALS) {
-    const b = document.createElement("button");
-    b.className = "chip";
-    b.type = "button";
-    b.textContent = label;
-    b.setAttribute("role", "radio");
-    b.setAttribute("aria-checked", String(profile.goal === id));
-    b.onclick = () => {
-      profile.goal = id;
-      saveProfile();
-      renderGoals();
-    };
-    box.appendChild(b);
+  for (const [nome, itens] of GRUPOS) {
+    const lista = [...itens];
+    if (nome === "Saltos" && /^j\d+$/.test(profile.goal) && !itens.some((i) => i[0] === profile.goal)) lista.push([profile.goal, num(+profile.goal.slice(1))]);
+    const g = document.createElement("div");
+    g.className = "grp";
+    const l = document.createElement("span");
+    l.className = "glabel";
+    l.textContent = nome;
+    g.appendChild(l);
+    const row = document.createElement("div");
+    row.className = "chips";
+    for (const [id, label] of lista) {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.type = "button";
+      b.textContent = label;
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", String(profile.goal === id));
+      b.onclick = () => {
+        profile.goal = id;
+        saveProfile();
+        renderGoals();
+      };
+      row.appendChild(b);
+    }
+    g.appendChild(row);
+    box.appendChild(g);
   }
 }
-var goalOf = (id) => id[0] === "t" ? { type: "time", v: +id.slice(1) } : id[0] === "k" ? { type: "kcal", v: +id.slice(1) } : { type: "free", v: 0 };
+$("metaJok").addEventListener("click", () => {
+  const n = Math.floor(+String($("metaJ").value).replace(",", "."));
+  if (!(n >= 10 && n <= 5e3)) return toast("Digite uma meta entre 10 e 5.000 saltos.");
+  profile.goal = "j" + n;
+  saveProfile();
+  $("metaJ").value = "";
+  renderGoals();
+  toast(`Meta definida: ${num(n)} saltos.`);
+});
+var goalOf = (id) => id[0] === "t" ? { type: "time", v: +id.slice(1) } : id[0] === "k" ? { type: "kcal", v: +id.slice(1) } : id[0] === "j" ? { type: "jumps", v: +id.slice(1) } : { type: "free", v: 0 };
 function renderHome() {
   const today = dayKey(Date.now());
   const days = [...Array(7)].map((_, i) => {
@@ -512,6 +547,7 @@ function renderProfile() {
   $("pRope").checked = profile.ropeSound;
   $("pCountry").innerHTML = Object.entries(PAISES).map(([c, n]) => `<option value="${c}">${flag(c)} ${n}</option>`).join("");
   $("pCountry").value = profile.country;
+  $("pPremios").textContent = `\u{1F3C5} Pr\xEAmios conquistados: ${num(profile.premios || 0)}`;
 }
 async function salvarConta() {
   saveProfile();
@@ -726,6 +762,27 @@ var mediana = (a) => {
   return b[Math.floor(b.length / 2)];
 };
 var dicaAberta = false;
+var estadoAtual = "";
+function estado(tipo) {
+  if (tipo === estadoAtual) return;
+  estadoAtual = tipo;
+  const el = $("estado"), b = $("borda");
+  if (tipo === "oculto") {
+    el.hidden = true;
+    b.className = "";
+    return;
+  }
+  const cfg = { pronto: ["ok", "\u25B6", "PODE COME\xC7AR"], start: ["ok", "\u25B6", "START!"], fora: ["ruim", "\u2715", "FORA DA POSI\xC7\xC3O"], ok: ["ok", "", ""] }[tipo];
+  b.className = cfg[0];
+  if (tipo === "ok") {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  el.className = "estado " + cfg[0];
+  el.querySelector("i").textContent = cfg[1];
+  el.querySelector("b").textContent = cfg[2];
+}
 var W = { running: false, raf: 0, stream: null, lock: null };
 var video = document.createElement("video");
 video.playsInline = true;
@@ -754,7 +811,8 @@ async function startWorkout() {
   $("workout").hidden = false;
   $("stop").hidden = true;
   $("hCount").textContent = "0";
-  $("hEq").textContent = "";
+  $("hFood").textContent = "Continue pulando\u2026";
+  $("hKcalBig").textContent = "0";
   $("hTime").textContent = "00:00";
   $("hKcal").textContent = "0,0";
   const goal = goalOf(profile.goal);
@@ -791,7 +849,7 @@ async function startWorkout() {
   }
   const counter = new JumpCounter({ up: { alta: 0.035, normal: 0.05, baixa: 0.07 }[profile.sens] || 0.05 });
   let mode = "tronco", modeSince = 0;
-  let phase = "position", okSince = 0, cdStart = 0, lastCd = 0, calib = null, calibBeep = 0;
+  let phase = "position", okSince = 0, calib = null, calibBeep = 0, ultimaComida = "", ultimoMarco = 0;
   W.calibrar = () => {
     calib = { t0: performance.now(), s: [] };
     abrirDica(false);
@@ -802,6 +860,9 @@ async function startWorkout() {
   const counted = () => counter.count;
   W.running = true;
   W.end = null;
+  W.premios = [];
+  W.meta = false;
+  estadoAtual = "";
   msg("Fique de frente, com a cabe\xE7a e os ombros na tela");
   const loop = () => {
     if (!W.running) return;
@@ -896,33 +957,20 @@ async function startWorkout() {
         okSince = 0;
         msg(!lm ? "Procurando voc\xEA\u2026 fique de frente para a c\xE2mera" : semPes ? "Afaste-se at\xE9 aparecer o corpo todo, da cabe\xE7a aos p\xE9s" : longe && dd.corpo ? "Chegue um pouco mais perto: o corpo deve ocupar a maior parte da tela" : longe ? "Chegue mais perto: encha o contorno com cabe\xE7a e ombros" : perto ? "Afaste s\xF3 um pouquinho" : "Mostre a cabe\xE7a e os ombros para a c\xE2mera");
       }
-      if (okSince && now - okSince > 1200) {
-        phase = "count";
-        cdStart = now;
-        lastCd = 4;
-        msg("");
-        $("calibrar").hidden = true;
-        $("cd").hidden = false;
-      }
-    } else if (phase === "count") {
-      const left = 3 - Math.floor((now - cdStart) / 1e3);
-      if (left !== lastCd && left > 0) {
-        lastCd = left;
-        $("cd").textContent = left;
-        beep(660, 120);
-      }
-      if (left <= 0) {
+      if (calib || dicaAberta) estado("oculto");
+      else estado(torsoOk ? "pronto" : "fora");
+      if (okSince && now - okSince > 1e3) {
         phase = "run";
         $("calibrar").hidden = true;
-        $("cd").hidden = true;
         $("stop").hidden = false;
-        t0 = lastTick = now;
+        t0 = lastTick = lastSeen = now;
         beep(1100, 300);
         buzz(60);
-        msg("Salte!");
+        msg("");
+        estado("start");
         setTimeout(() => {
-          if (phase === "run") msg("");
-        }, 1500);
+          if (phase === "run" && !paused) estado("ok");
+        }, 1300);
       }
     } else if (phase === "run") {
       const tracked = now - lastSeen < 1500;
@@ -930,10 +978,12 @@ async function startWorkout() {
         if (paused) {
           paused = false;
           msg("");
+          estado("ok");
         }
         active += (now - lastTick) / 1e3;
       } else if (!paused) {
         paused = true;
+        estado("fora");
         msg("Pausado. Chegue mais perto e volte ao enquadramento.");
       }
       lastTick = now;
@@ -956,7 +1006,14 @@ async function startWorkout() {
           if (profile.ropeSound) somCorda(actx, counter.period);
           else beep(880, 45);
           buzz(12);
-          if (counter.count % 50 === 0) celebrate(counter.count, { actx: profile.sound ? actx : null, vibrate: profile.sound });
+          if (counter.count % 50 === 0) {
+            const pr = premio(counter.count);
+            W.premios.push(pr.emoji);
+            profile.premios = (profile.premios || 0) + 1;
+            saveProfile();
+            renderProfile();
+            celebrate(counter.count, { actx: profile.sound ? actx : null, vibrate: profile.sound, premio: pr });
+          }
           $("hCount").textContent = counter.count;
           $("hCount").classList.remove("pop");
           void $("hCount").offsetWidth;
@@ -966,11 +1023,26 @@ async function startWorkout() {
       const k = kcal(active, profile.kg);
       $("hTime").textContent = mmss(active);
       $("hKcal").textContent = num(k, 1);
-      $("hEq").textContent = k >= 5 ? "\u2248 " + equivalente(k) : "";
+      $("hKcalBig").textContent = num(k, 1);
+      const cf = comida(k), chave = cf ? cf.emoji + cf.n : "";
+      if (chave !== ultimaComida) {
+        ultimaComida = chave;
+        $("hFood").textContent = cf ? `${cf.emoji} ${cf.texto}` : "Continue pulando\u2026";
+        const f = $("hFood");
+        f.classList.remove("pop");
+        void f.offsetWidth;
+        f.classList.add("pop");
+      }
+      const marco = Math.floor(k / 10);
+      if (marco > ultimoMarco) {
+        ultimoMarco = marco;
+        kcalPop(`\u{1F525} ${marco * 10} kcal queimadas!`, cf ? cf.texto : "");
+      }
       if (goal.type !== "free") {
-        const frac = goal.type === "time" ? active / goal.v : k / goal.v;
+        const frac = goal.type === "time" ? active / goal.v : goal.type === "kcal" ? k / goal.v : counter.count / goal.v;
         $("goalfill").style.width = Math.min(100, frac * 100) + "%";
         if (frac >= 1) {
+          W.meta = true;
           W.end = { jumps: counter.count, secs: Math.round(active) };
           finish();
           ctx.restore();
@@ -978,10 +1050,6 @@ async function startWorkout() {
         }
       }
       W.end = { jumps: counter.count, secs: Math.round(active) };
-    }
-    if (phase === "position" && !dicaAberta) {
-      if (dd.corpo) guiaCorpo(cw, ch, torsoOk);
-      else guia(cw, ch, dd.ideal * vh * sc, torsoOk);
     }
     if (lm && torsoOk) {
       ctx.fillStyle = "rgba(232,194,49,.85)";
@@ -996,53 +1064,6 @@ async function startWorkout() {
     ctx.restore();
   };
   loop();
-}
-function guiaCorpo(cw, ch, ok) {
-  const cx = cw / 2, H = ch * 0.74, y0 = ch * 0.12;
-  const hd = y0 + 0.06 * H, ys = y0 + 0.17 * H, yh = y0 + 0.52 * H, yk = y0 + 0.74 * H, yf = y0 + H, ws = 0.11 * H, wh = 0.08 * H;
-  ctx.save();
-  ctx.setLineDash([12, 10]);
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = ok ? "#5be37d" : "#e8c231";
-  ctx.shadowColor = "#0009";
-  ctx.shadowBlur = 6;
-  ctx.beginPath();
-  ctx.arc(cx, hd, 0.055 * H, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(cx - ws, ys);
-  ctx.lineTo(cx + ws, ys);
-  ctx.moveTo(cx - ws, ys);
-  ctx.lineTo(cx - wh, yh);
-  ctx.lineTo(cx - wh * 0.9, yk);
-  ctx.lineTo(cx - wh * 0.8, yf);
-  ctx.moveTo(cx + ws, ys);
-  ctx.lineTo(cx + wh, yh);
-  ctx.lineTo(cx + wh * 0.9, yk);
-  ctx.lineTo(cx + wh * 0.8, yf);
-  ctx.moveTo(cx - wh, yh);
-  ctx.lineTo(cx + wh, yh);
-  ctx.stroke();
-  ctx.restore();
-}
-function guia(cw, ch, swPx, ok) {
-  const cx = cw / 2, ys = ch * 0.58, r = swPx * 0.26, yc = ys - swPx * 0.5;
-  ctx.save();
-  ctx.setLineDash([12, 10]);
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.strokeStyle = ok ? "#5be37d" : "#e8c231";
-  ctx.shadowColor = "#0009";
-  ctx.shadowBlur = 6;
-  ctx.beginPath();
-  ctx.arc(cx, yc, r, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.ellipse(cx, ys + swPx * 0.42, swPx / 2, swPx * 0.5, 0, Math.PI, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
 }
 function drawRope(P, lm, now, counter, lastJumpAt, swPx) {
   const [lsx, lsy] = P(L.ls), [rsx, rsy] = P(L.rs);
@@ -1106,8 +1127,30 @@ function abrirDica(sim) {
 $("dicaOk").addEventListener("click", () => abrirDica(false));
 $("calibrar").addEventListener("click", () => W.calibrar && W.calibrar());
 $("ajuda").addEventListener("click", () => abrirDica(true));
+var kcalPopT = 0;
+function kcalPop(t1, t2, tent = 0) {
+  if (!$("banner").hidden) {
+    if (tent < 5) setTimeout(() => {
+      if (W.running) kcalPop(t1, t2, tent + 1);
+    }, 1200);
+    return;
+  }
+  const el = $("kcalPop");
+  $("kcalPopA").textContent = t1;
+  $("kcalPopB").textContent = t2;
+  el.hidden = false;
+  el.classList.remove("show");
+  void el.offsetWidth;
+  el.classList.add("show");
+  clearTimeout(kcalPopT);
+  kcalPopT = setTimeout(() => {
+    el.hidden = true;
+  }, 3400);
+}
 function endWorkout(silent) {
   abrirDica(false);
+  estado("oculto");
+  $("kcalPop").hidden = true;
   W.running = false;
   cancelAnimationFrame(W.raf);
   if (W.stream) W.stream.getTracks().forEach((t) => t.stop());
@@ -1136,7 +1179,15 @@ function finish() {
   $("rTime").textContent = mmss(e.secs);
   $("rKcal").textContent = num(k, 1);
   $("rPace").textContent = num(Math.round(e.jumps / e.secs * 60));
-  $("rEq").textContent = k >= 5 ? `Voc\xEA queimou ${num(k, 1)} kcal, ${equivalente(k)}.` : "";
+  const cf = comida(k);
+  $("kcalRes").hidden = !cf;
+  if (cf) {
+    $("rEmoji").textContent = cf.emoji;
+    $("rKcalTxt").textContent = `Voc\xEA queimou ${num(k, 1)} kcal`;
+    $("rFood").textContent = cf.texto;
+  }
+  $("rPremios").textContent = W.premios && W.premios.length ? "Pr\xEAmios deste treino: " + W.premios.join(" ") : "";
+  $("rMeta").hidden = !W.meta;
   $("rRank").textContent = "";
   $("result").hidden = false;
   W.last = item;

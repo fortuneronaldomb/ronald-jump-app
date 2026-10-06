@@ -129,3 +129,31 @@ details.sec summary{color:var(--yellow)}
 .distChips button[aria-checked=true]{background:var(--yellow);border-color:var(--yellow);color:var(--ink)}
 .bot-hud{flex-direction:column;align-items:stretch;gap:10px}.bot-hud .btn{margin-top:0;background:#000b}.bot-hud .btn.stop{background:var(--orange)}
 .distChips{flex-wrap:wrap}.distChips span{flex:1 0 100%}.distChips button{flex:1 1 22%}
+
+/* metas por grupo */
+.grp{margin:10px 0 2px}.glabel{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px 2px}
+.metaj{display:flex;gap:8px;margin:8px 0 0}.metaj input{flex:1;min-width:0;background:var(--char);border:1.5px solid var(--mid);border-radius:12px;padding:12px 14px;color:var(--bone);font-size:16px;min-height:48px}
+.metaj .btn{width:auto;margin-top:0;padding:0 20px}
+/* indicador verde/vermelho no treino */
+#borda{position:absolute;inset:0;z-index:2;pointer-events:none;border:0 solid transparent;transition:border-color .2s,border-width .2s}
+#borda.ok{border:7px solid #2fd665}#borda.ruim{border:9px solid #ff4b3a;animation:piscaBorda .9s ease-in-out infinite alternate}
+@keyframes piscaBorda{to{border-color:#ff4b3a66}}
+.estado{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 92px);transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:12px;padding:10px 22px 10px 12px;border-radius:999px;box-shadow:0 6px 24px #000a;pointer-events:none;white-space:nowrap}
+.estado.ok{background:#1fbf55;color:#04210f}.estado.ruim{background:#e5392b;color:#fff}
+.estado i{font-style:normal;width:54px;height:54px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font:900 30px/1 system-ui,sans-serif}
+.estado.ok i{color:#1fbf55;padding-left:5px}.estado.ruim i{color:#e5392b}
+.estado b{font:900 26px/1 var(--disp);text-transform:uppercase;letter-spacing:.05em}
+/* calorias em destaque */
+.kcalCard{margin:10px auto 0;max-width:340px;background:#000b;border:2px solid var(--orange);border-radius:18px;padding:10px 16px;box-shadow:0 0 22px #d4511a55}
+.kcalCard .kn{font-size:14px;color:var(--bone)}.kcalCard .kn b{font:900 40px/1 var(--disp);color:var(--yellow)}
+.kcalCard .kf{font-size:19px;font-weight:700;margin-top:2px;color:var(--bone)}.kcalCard .kf.pop{animation:pop .3s ease-out}
+#kcalPop{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 150px);transform:translateX(-50%);z-index:5;background:linear-gradient(#e8c231,#d4511a);color:#1a0a00;border-radius:18px;padding:12px 20px;text-align:center;box-shadow:0 8px 28px #000a;pointer-events:none;max-width:90vw}
+#kcalPop b{display:block;font:900 28px/1 var(--disp);text-transform:uppercase}#kcalPop span{display:block;font-weight:700;font-size:17px;margin-top:2px}
+#kcalPop.show{animation:entraPop .45s cubic-bezier(.2,1.4,.4,1)}
+@keyframes entraPop{from{transform:translateX(-50%) scale(.6);opacity:0}}
+#banner .premio{font:900 24px/1.1 var(--disp);color:var(--bone);margin-top:6px;text-transform:uppercase;letter-spacing:.04em}
+/* resultado */
+.kcalRes{display:flex;align-items:center;gap:14px;text-align:left;background:#2a1a10;border:2px solid var(--orange);border-radius:18px;padding:12px 16px;margin:16px 0 4px}
+.kcalRes .em{font-size:44px;line-height:1}.kcalRes b{display:block;font:900 26px/1 var(--disp);color:var(--yellow);text-transform:uppercase}.kcalRes small{display:block;font-size:17px;font-weight:700;margin-top:3px}
+.premios{font-size:26px;margin:8px 0 0}.metaok{font:900 28px/1 var(--disp);color:#5be37d;text-transform:uppercase;margin:8px 0 0}
+@media(prefers-reduced-motion:reduce){#borda.ruim,#kcalPop.show,.kcalCard .kf.pop{animation:none}}

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Ronald Jump</title>
 <meta name="theme-color" content="#0a0a0a">
-<meta name="rj-versao" content="11">
+<meta name="rj-versao" content="12">
 <meta name="description" content="Conte seus saltos pela câmera, veja as calorias e entre no ranking.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -30,7 +30,8 @@
       <p class="muted">Apoie o celular em pé no chão com a câmera frontal. Pode ficar de perto, a cerca de 1 metro, com a cabeça e os ombros na tela, ou mais longe, com o corpo inteiro.</p>
     </div>
     <h2 class="sub">Meta do treino</h2>
-    <div class="chips" id="goals" role="radiogroup" aria-label="Meta do treino"></div>
+    <div id="goals" role="radiogroup" aria-label="Meta do treino"></div>
+    <div class="metaj"><input id="metaJ" type="number" inputmode="numeric" min="10" max="5000" placeholder="Outra meta de saltos (ex.: 750)" aria-label="Outra meta de saltos"><button class="btn small" id="metaJok" type="button">Definir</button></div>
     <label class="switch"><input type="checkbox" id="ropeToggle" checked><span>Mostrar corda virtual</span></label>
     <button class="btn big" id="start" type="button">Começar treino</button>
     <div class="stats">
@@ -73,6 +74,7 @@
     </div>
     <label class="switch" id="pFotoRankLbl" hidden><input type="checkbox" id="pFotoRank"><span>Mostrar minha foto no ranking (outras pessoas poderão ver)</span></label>
     <p class="muted" id="pEmail"></p>
+    <p class="muted" id="pPremios"></p>
     <label class="field">Seu nome no ranking<input id="pName" maxlength="20" autocomplete="nickname" placeholder="Ex.: Ronald"></label>
     <label class="field">Peso (kg), para estimar calorias<input id="pKg" type="number" inputmode="decimal" min="30" max="250" step="0.5"></label>
     <label class="field">País<select id="pCountry"></select></label>
@@ -95,7 +97,7 @@
       <button class="btn ghost" id="sAll" type="button">Sair de todos os aparelhos</button>
       <button class="btn ghost" id="sExport" type="button">Baixar meus dados</button>
     </details>
-    <p class="muted" id="versaoApp">Versão 11</p>
+    <p class="muted" id="versaoApp">Versão 12</p>
     <p class="muted"><a href="/estavel/">Abrir a versão estável (sem conta)</a></p>
     <details class="danger"><summary>Excluir minha conta</summary>
       <p class="muted">Apaga sua conta, seus treinos e seu lugar no ranking. Não dá para desfazer.</p>
@@ -115,7 +117,7 @@
 <div id="workout" hidden>
   <canvas id="cv"></canvas>
   <canvas id="fx" aria-hidden="true"></canvas>
-  <div id="banner" hidden aria-live="polite"><div class="title"></div><div class="reels" aria-hidden="true"></div><div class="sub"></div></div>
+  <div id="banner" hidden aria-live="polite"><div class="title"></div><div class="reels" aria-hidden="true"></div><div class="sub"></div><div class="premio"></div></div>
   <div class="hud top-hud">
     <button class="x" id="cancel" type="button" aria-label="Sair do treino">✕</button>
     <button class="x h" id="ajuda" type="button" aria-label="Como posicionar o celular">?</button>
@@ -123,9 +125,12 @@
     <div class="pill"><b id="hKcal">0,0</b> kcal</div>
   </div>
   <div class="goalbar" id="goalbar" hidden><i id="goalfill"></i></div>
+  <div id="borda" aria-hidden="true"></div>
+  <div id="estado" class="estado" hidden role="status" aria-live="polite"><i></i><b></b></div>
+  <div id="kcalPop" hidden role="status"><b id="kcalPopA"></b><span id="kcalPopB"></span></div>
   <div class="center">
     <div class="count" id="hCount">0</div>
-    <div class="eq" id="hEq"></div>
+    <div class="kcalCard"><div class="kn"><b id="hKcalBig">0</b> kcal queimadas</div><div class="kf" id="hFood">Continue pulando…</div></div>
   </div>
   <div class="msg" id="hMsg" role="status" aria-live="polite"></div>
   <div class="hud bot-hud"><button class="btn ghost" id="calibrar" type="button" hidden>Calibrar minha distância</button><button class="btn stop" id="stop" type="button" hidden>Finalizar</button></div>
@@ -167,7 +172,9 @@
       <div><b id="rKcal">0</b><span>kcal</span></div>
       <div><b id="rPace">0</b><span>saltos/min</span></div>
     </div>
-    <p id="rEq"></p>
+    <div class="kcalRes" id="kcalRes" hidden><span class="em" id="rEmoji"></span><div><b id="rKcalTxt"></b><small id="rFood"></small></div></div>
+    <p class="premios" id="rPremios"></p>
+    <p class="metaok" id="rMeta" hidden>🎯 Meta batida!</p>
     <p class="muted" id="rRank" role="status"></p>
     <button class="btn" id="rShare" type="button">Compartilhar</button>
     <button class="btn ghost" id="rClose" type="button">Voltar ao início</button>
