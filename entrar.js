@@ -49,12 +49,14 @@
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
         if (!res.ok) { erro(res.d.erro || 'Não foi possível continuar. Tente de novo.'); return; }
-        localStorage.setItem('rj.token', JSON.stringify(res.d.token)); localStorage.setItem('rj.user', JSON.stringify(res.d.user));
+        localStorage.setItem('rj.token', JSON.stringify(res.d.token)); localStorage.setItem('rj.user', JSON.stringify(res.d.user)); localStorage.removeItem('rj.guest');
         location.replace('/');
       })
       .catch(function () { erro('Sem conexão com o servidor. Confira a internet e tente de novo.'); })
       .then(function () { $('go').disabled = false; $('go').textContent = modo === 'login' ? 'Entrar' : 'Criar conta'; });
   });
+
+  $('semConta').addEventListener('click', function () { localStorage.setItem('rj.guest', 'true'); location.replace('/'); }); // modo sem conta (a Apple exige que o app funcione sem login quando possível)
 
   // ---- instalar como app (a partir do navegador)
   var ua = navigator.userAgent;

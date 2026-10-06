@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Ronald Jump</title>
 <meta name="theme-color" content="#0a0a0a">
-<meta name="rj-versao" content="12">
+<meta name="rj-versao" content="13">
 <meta name="description" content="Conte seus saltos pela câmera, veja as calorias e entre no ranking.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -34,6 +34,10 @@
     <div class="metaj"><input id="metaJ" type="number" inputmode="numeric" min="10" max="5000" placeholder="Outra meta de saltos (ex.: 750)" aria-label="Outra meta de saltos"><button class="btn small" id="metaJok" type="button">Definir</button></div>
     <label class="switch"><input type="checkbox" id="ropeToggle" checked><span>Mostrar corda virtual</span></label>
     <button class="btn big" id="start" type="button">Começar treino</button>
+    <div class="anel" id="anel">
+      <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="trilho" cx="60" cy="60" r="50"/><circle class="prog" id="anelProg" cx="60" cy="60" r="50"/></svg>
+      <div class="anelTxt"><b id="anelN">0</b><span id="anelM">de 300 saltos hoje</span><em id="chama"></em></div>
+    </div>
     <div class="stats">
       <div><b id="sToday">0</b><span>saltos hoje</span></div>
       <div><b id="sKcal">0</b><span>kcal hoje</span></div>
@@ -60,11 +64,12 @@
     <h2 class="sub">Países</h2>
     <ol class="list rank" id="rankCountries"></ol>
     <p class="muted" id="rankMsg" role="status"></p>
+    <div class="so-convidado aviso-conta"><b>Quer aparecer no ranking?</b> Crie uma conta grátis.<a class="btn small" href="/entrar.html">Criar conta</a></div>
   </section>
 
   <section id="profile" class="screen">
     <header class="top"><b class="wordmark">Perfil</b></header>
-    <div class="foto">
+    <div class="foto so-conta">
       <i class="avatar big" id="pFotoImg" aria-hidden="true"></i>
       <div class="fotoBtns">
         <button class="btn small" id="pFotoBtn" type="button">Escolher foto</button>
@@ -72,34 +77,36 @@
       </div>
       <input type="file" id="pFotoInput" accept="image/*" hidden>
     </div>
-    <label class="switch" id="pFotoRankLbl" hidden><input type="checkbox" id="pFotoRank"><span>Mostrar minha foto no ranking (outras pessoas poderão ver)</span></label>
-    <p class="muted" id="pEmail"></p>
+    <label class="switch so-conta" id="pFotoRankLbl" hidden><input type="checkbox" id="pFotoRank"><span>Mostrar minha foto no ranking (outras pessoas poderão ver)</span></label>
+    <div class="so-convidado aviso-conta"><b>Você está usando sem conta.</b> Seus treinos ficam só neste celular. Crie uma conta para entrar no ranking e guardar tudo na nuvem.<a class="btn small" href="/entrar.html">Entrar ou criar conta</a></div>
+    <p class="muted so-conta" id="pEmail"></p>
     <p class="muted" id="pPremios"></p>
-    <label class="field">Seu nome no ranking<input id="pName" maxlength="20" autocomplete="nickname" placeholder="Ex.: Ronald"></label>
+    <label class="field so-conta">Seu nome no ranking<input id="pName" maxlength="20" autocomplete="nickname" placeholder="Ex.: Ronald"></label>
     <label class="field">Peso (kg), para estimar calorias<input id="pKg" type="number" inputmode="decimal" min="30" max="250" step="0.5"></label>
-    <label class="field">País<select id="pCountry"></select></label>
+    <label class="field so-conta">País<select id="pCountry"></select></label>
+    <label class="field">Meta diária de saltos<input id="pMetaDia" type="number" inputmode="numeric" min="50" max="5000" step="10"></label>
     <label class="field">Distância do treino<select id="pDist"><option value="corpo">Corpo inteiro (2 a 2,5 m, da cabeça aos pés)</option><option value="perto">Perto (cerca de 1 m, só ombros)</option><option value="medio">Média (1,5 a 2 m)</option><option value="longe">Longe (2,5 a 3 m, corpo inteiro)</option><option value="custom" disabled>Minha posição (calibrada)</option></select></label>
     <p class="muted">Quer a mesma distância de outro app (como o Jumpr)? Fique onde ele funciona bem, abra o treino aqui com o celular no mesmo lugar e toque em <b>Calibrar minha distância</b>.</p>
     <label class="field">Sensibilidade da contagem<select id="pSens"><option value="alta">Alta (saltos pequenos)</option><option value="normal">Normal</option><option value="baixa">Baixa (evita contar sem pular)</option></select></label>
     <label class="switch"><input type="checkbox" id="pRope"><span>Som da corda a cada salto</span></label>
     <label class="switch"><input type="checkbox" id="pSound"><span>Som e vibração (inclui as comemorações)</span></label>
-    <label class="switch"><input type="checkbox" id="pRank"><span>Aparecer no ranking mundial</span></label>
+    <label class="switch so-conta"><input type="checkbox" id="pRank"><span>Aparecer no ranking mundial</span></label>
     <button class="btn" id="install" type="button" hidden>Instalar o app</button>
     <p class="muted" id="iosHint" hidden>No iPhone: toque em Compartilhar e depois em Adicionar à Tela de Início.</p>
-    <button class="btn ghost" id="logout" type="button">Sair da conta</button>
+    <button class="btn ghost so-conta" id="logout" type="button">Sair da conta</button>
     <h2 class="sub">Privacidade</h2>
     <p class="muted">A câmera é usada só para detectar seus movimentos, direto no celular. O vídeo não é gravado nem enviado. Guardamos seu e-mail, nome, país, peso e os treinos. <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a></p>
     <p class="muted">As calorias são uma estimativa (10 METs × peso × tempo) e não substituem orientação profissional.</p>
-    <details class="danger sec"><summary>Segurança e meus dados</summary>
+    <details class="danger sec so-conta"><summary>Segurança e meus dados</summary>
       <label class="field">Senha atual<input id="sOld" type="password" autocomplete="current-password"></label>
       <label class="field">Nova senha<input id="sNew" type="password" autocomplete="new-password" placeholder="Letras e números, mínimo 8"></label>
       <button class="btn" id="sChange" type="button">Alterar senha</button>
       <button class="btn ghost" id="sAll" type="button">Sair de todos os aparelhos</button>
       <button class="btn ghost" id="sExport" type="button">Baixar meus dados</button>
     </details>
-    <p class="muted" id="versaoApp">Versão 12</p>
+    <p class="muted" id="versaoApp">Versão 13</p>
     <p class="muted"><a href="/estavel/">Abrir a versão estável (sem conta)</a></p>
-    <details class="danger"><summary>Excluir minha conta</summary>
+    <details class="danger so-conta"><summary>Excluir minha conta</summary>
       <p class="muted">Apaga sua conta, seus treinos e seu lugar no ranking. Não dá para desfazer.</p>
       <label class="field">Confirme sua senha<input id="dPass" type="password" autocomplete="current-password"></label>
       <button class="btn stop" id="delAcc" type="button">Excluir para sempre</button>
@@ -121,7 +128,7 @@
   <div class="hud top-hud">
     <button class="x" id="cancel" type="button" aria-label="Sair do treino">✕</button>
     <button class="x h" id="ajuda" type="button" aria-label="Como posicionar o celular">?</button>
-    <div class="pill"><b id="hTime">00:00</b></div>
+    <div class="pill"><i class="dot" id="sinalDot" aria-hidden="true"></i><b id="hTime">00:00</b></div>
     <div class="pill"><b id="hKcal">0,0</b> kcal</div>
   </div>
   <div class="goalbar" id="goalbar" hidden><i id="goalfill"></i></div>
@@ -173,6 +180,7 @@
       <div><b id="rPace">0</b><span>saltos/min</span></div>
     </div>
     <div class="kcalRes" id="kcalRes" hidden><span class="em" id="rEmoji"></span><div><b id="rKcalTxt"></b><small id="rFood"></small></div></div>
+    <p class="ritmo" id="rRitmo"></p>
     <p class="premios" id="rPremios"></p>
     <p class="metaok" id="rMeta" hidden>🎯 Meta batida!</p>
     <p class="muted" id="rRank" role="status"></p>
@@ -197,6 +205,16 @@
       <p class="err" id="aErr" role="alert"></p>
     </form>
     <p class="muted"><a href="/estavel/">Problemas para entrar? Use a versão estável (sem conta)</a></p>
+  </div>
+</div>
+<div id="boas" hidden role="dialog" aria-label="Boas-vindas ao Ronald Jump">
+  <div class="cx">
+    <div class="slide"><div class="ic">⚡</div><h2>Salte. A câmera conta.</h2><p>Poucos minutos, alta intensidade. O Ronald Jump conta seus saltos, calcula as calorias e dá prêmios a cada 50.</p></div>
+    <div class="slide" hidden><div class="ic">📱</div><h2>Posicione o celular</h2><p>Apoie o celular em pé no chão, com a câmera da frente para você. Dê passos para trás até aparecer o <b>▶ verde</b>. Se ficar <b>vermelho</b>, a câmera não está vendo você direito.</p></div>
+    <div class="slide" hidden><div class="ic">🏅</div><h2>Suba no ranking</h2><p>Conquiste medalhas, bata metas e compare-se com o mundo. O vídeo nunca sai do seu celular: a câmera só serve para contar os saltos.</p></div>
+    <div class="pts"><i class="on"></i><i></i><i></i></div>
+    <button class="btn" id="boasNext" type="button">Próximo</button>
+    <button class="btn ghost" id="boasPular" type="button">Pular</button>
   </div>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>

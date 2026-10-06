@@ -94,6 +94,98 @@ function comida(k) {
 }
 var PREMIOS = { 50: ["\u{1F949}", "Medalha de Bronze"], 100: ["\u{1F948}", "Medalha de Prata"], 200: ["\u{1F947}", "Medalha de Ouro"], 300: ["\u{1F3C6}", "Trof\xE9u"], 500: ["\u{1F48E}", "Diamante"], 1e3: ["\u{1F451}", "Coroa de Lenda"] };
 var premio = (n) => PREMIOS[n] ? { emoji: PREMIOS[n][0], nome: PREMIOS[n][1] } : { emoji: "\u2B50", nome: "+1 estrela" };
+function ritmoDe(temposMs) {
+  const iv = [];
+  for (let i = 1; i < temposMs.length; i++) {
+    const d = (temposMs[i] - temposMs[i - 1]) / 1e3;
+    if (d > 0 && d < 1.5) iv.push(d);
+  }
+  if (iv.length < 10) return null;
+  const m = iv.reduce((a, b) => a + b, 0) / iv.length, sd = Math.sqrt(iv.reduce((a, b) => a + (b - m) ** 2, 0) / iv.length);
+  return { estavel: Math.max(0, Math.round(100 - sd / m * 100)), cadencia: Math.round(60 / m) };
+}
+
+// src/rope-shape.js
+var nivelCorda = (fase) => -Math.cos(2 * Math.PI * fase - 0.55 * Math.PI);
+var visivelCorda = (nivel2) => Math.min(1, Math.max(0, (Math.abs(nivel2) - 0.35) / 0.3));
+
+// src/cartao.js
+var carregar = (url) => new Promise((ok, no) => {
+  const i = new Image();
+  i.onload = () => ok(i);
+  i.onerror = no;
+  i.src = url;
+});
+async function gerarCartao({ jumps, secs, kcal: kcal2, comida: comida2 = "", premios = "", ritmo = "", logoUrl = "/icons/logo.png", site = "" }) {
+  const W2 = 1080, H = 1920, c = document.createElement("canvas");
+  c.width = W2;
+  c.height = H;
+  const x = c.getContext("2d");
+  try {
+    await document.fonts.load('900 120px "Big Shoulders Display"');
+    await document.fonts.load('700 40px "DM Sans"');
+  } catch {
+  }
+  const DISP = '900 %spx "Big Shoulders Display","Arial Narrow",Impact,sans-serif', SANS = '700 %spx "DM Sans",system-ui,sans-serif';
+  const f = (m, n) => m.replace("%s", n);
+  const g = x.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#0a0a0a");
+  g.addColorStop(1, "#241006");
+  x.fillStyle = g;
+  x.fillRect(0, 0, W2, H);
+  ["#d4511a", "#e8c231", "#2bb3c0"].forEach((cor, i) => {
+    x.strokeStyle = cor + "66";
+    x.lineWidth = 10;
+    x.beginPath();
+    x.ellipse(W2 / 2, 520, 400 + i * 75, 140 + i * 34, -0.18 + i * 0.16, 0, Math.PI * 2);
+    x.stroke();
+  });
+  try {
+    const img = await carregar(logoUrl);
+    x.save();
+    x.beginPath();
+    x.arc(W2 / 2, 520, 165, 0, Math.PI * 2);
+    x.clip();
+    x.drawImage(img, W2 / 2 - 165, 355, 330, 330);
+    x.restore();
+  } catch {
+  }
+  x.textAlign = "center";
+  x.fillStyle = "#f5f0e8";
+  x.font = f(DISP, 96);
+  x.fillText("RONALD JUMP", W2 / 2, 800);
+  x.fillStyle = "#e8c231";
+  x.font = f(DISP, 380);
+  x.fillText(String(jumps), W2 / 2, 1130);
+  x.fillStyle = "#f5f0e8";
+  x.font = f(DISP, 84);
+  x.fillText("SALTOS", W2 / 2, 1220);
+  const mm = `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`;
+  x.font = f(DISP, 120);
+  x.fillStyle = "#e8c231";
+  x.fillText(mm, W2 * 0.3, 1400);
+  x.fillText(kcal2, W2 * 0.7, 1400);
+  x.font = f(SANS, 40);
+  x.fillStyle = "#a49f95";
+  x.fillText("TEMPO", W2 * 0.3, 1456);
+  x.fillText("KCAL QUEIMADAS", W2 * 0.7, 1456);
+  x.fillStyle = "#f5f0e8";
+  x.font = f(SANS, 54);
+  if (comida2) x.fillText(comida2, W2 / 2, 1590);
+  if (premios) {
+    x.font = f(SANS, 76);
+    x.fillText(premios, W2 / 2, 1700);
+  }
+  if (ritmo) {
+    x.font = f(SANS, 42);
+    x.fillStyle = "#a49f95";
+    x.fillText(ritmo, W2 / 2, 1775);
+  }
+  x.fillStyle = "#e8c231";
+  x.font = f(SANS, 40);
+  x.fillText(site ? "Salte tamb\xE9m: " + site : "Salte tamb\xE9m no Ronald Jump", W2 / 2, 1855);
+  return new Promise((ok) => c.toBlob((b) => ok(b), "image/png"));
+}
 
 // src/celebration.js
 var fxc = document.getElementById("fx");
@@ -326,7 +418,7 @@ var NADA = new Proxy(function() {
 }, toggle() {
 }, contains: () => false } : k === Symbol.toPrimitive ? () => "" : NADA, set: () => true, apply: () => NADA });
 var $ = (id) => document.getElementById(id) || NADA;
-var VERSAO = 12;
+var VERSAO = 13;
 (async () => {
   const meta = Number(document.querySelector('meta[name="rj-versao"]')?.content || 0);
   try {
@@ -372,7 +464,7 @@ var dayKey = (d) => {
   const x = new Date(d);
   return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
 };
-var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, dist: "corpo", distV: 0, distCustom: null, premios: 0, dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
+var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, dist: "corpo", distV: 0, distCustom: null, premios: 0, metaDia: 300, boas: 0, dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
 if (!profile.distV) {
   if (profile.dist !== "custom") profile.dist = "corpo";
   profile.distV = 1;
@@ -401,7 +493,7 @@ function sairLocal() {
   user = null;
   history = [];
   pending = [];
-  ["rj.token", "rj.user", "rj.hist", "rj.pending"].forEach((k) => {
+  ["rj.token", "rj.user", "rj.hist", "rj.pending", "rj.guest"].forEach((k) => {
     try {
       localStorage.removeItem(k);
     } catch {
@@ -500,6 +592,12 @@ function renderHome() {
     d.setDate(d.getDate() - 1);
   }
   $("sStreak").textContent = streak;
+  const meta = profile.metaDia || 300, pct = Math.min(1, tj / meta);
+  $("anelProg").style.strokeDashoffset = String(314 * (1 - pct));
+  $("anel").classList.toggle("ok", pct >= 1);
+  $("anelN").textContent = num(tj);
+  $("anelM").textContent = pct >= 1 ? `meta de ${num(meta)} batida! \u{1F389}` : `de ${num(meta)} saltos hoje`;
+  $("chama").textContent = streak ? `\u{1F525} ${streak} ${streak === 1 ? "dia seguido" : "dias seguidos"}` : "Comece sua sequ\xEAncia hoje";
   const max = Math.max(1, ...days.map((x) => per[dayKey(x)] || 0));
   $("bars").innerHTML = days.map((x) => {
     const v = per[dayKey(x)] || 0;
@@ -547,6 +645,7 @@ function renderProfile() {
   $("pRope").checked = profile.ropeSound;
   $("pCountry").innerHTML = Object.entries(PAISES).map(([c, n]) => `<option value="${c}">${flag(c)} ${n}</option>`).join("");
   $("pCountry").value = profile.country;
+  $("pMetaDia").value = profile.metaDia || 300;
   $("pPremios").textContent = `\u{1F3C5} Pr\xEAmios conquistados: ${num(profile.premios || 0)}`;
 }
 async function salvarConta() {
@@ -572,6 +671,13 @@ $("pKg").addEventListener("change", (e) => {
 $("pCountry").addEventListener("change", (e) => {
   profile.country = e.target.value;
   salvarConta();
+});
+$("pMetaDia").addEventListener("change", (e) => {
+  const n = Math.floor(+e.target.value);
+  profile.metaDia = n >= 50 && n <= 5e3 ? n : profile.metaDia || 300;
+  e.target.value = profile.metaDia;
+  saveProfile();
+  renderHome();
 });
 $("pSens").addEventListener("change", (e) => {
   profile.sens = e.target.value;
@@ -770,10 +876,12 @@ function estado(tipo) {
   if (tipo === "oculto") {
     el.hidden = true;
     b.className = "";
+    $("sinalDot").className = "dot";
     return;
   }
   const cfg = { pronto: ["ok", "\u25B6", "PODE COME\xC7AR"], start: ["ok", "\u25B6", "START!"], fora: ["ruim", "\u2715", "FORA DA POSI\xC7\xC3O"], ok: ["ok", "", ""] }[tipo];
   b.className = cfg[0];
+  $("sinalDot").className = "dot " + (cfg[0] === "ok" ? "v" : "r");
   if (tipo === "ok") {
     el.hidden = true;
     return;
@@ -861,8 +969,11 @@ async function startWorkout() {
   W.running = true;
   W.end = null;
   W.premios = [];
+  W.tempos = [];
   W.meta = false;
   estadoAtual = "";
+  const ondas = [];
+  let ultimoH = 0;
   msg("Fique de frente, com a cabe\xE7a e os ombros na tela");
   const loop = () => {
     if (!W.running) return;
@@ -952,14 +1063,14 @@ async function startWorkout() {
         msg("");
       } else if (torsoOk) {
         if (!okSince) okSince = now;
-        msg("Isso! Fique parado por um instante\u2026");
+        msg("");
       } else {
         okSince = 0;
         msg(!lm ? "Procurando voc\xEA\u2026 fique de frente para a c\xE2mera" : semPes ? "Afaste-se at\xE9 aparecer o corpo todo, da cabe\xE7a aos p\xE9s" : longe && dd.corpo ? "Chegue um pouco mais perto: o corpo deve ocupar a maior parte da tela" : longe ? "Chegue mais perto: encha o contorno com cabe\xE7a e ombros" : perto ? "Afaste s\xF3 um pouquinho" : "Mostre a cabe\xE7a e os ombros para a c\xE2mera");
       }
       if (calib || dicaAberta) estado("oculto");
       else estado(torsoOk ? "pronto" : "fora");
-      if (okSince && now - okSince > 1e3) {
+      if (okSince && now - okSince > 800) {
         phase = "run";
         $("calibrar").hidden = true;
         $("stop").hidden = false;
@@ -1001,7 +1112,10 @@ async function startWorkout() {
       }
       if (scale > 0) {
         const r = counter.update(y, scale, now);
+        ultimoH = r.h;
         if (r.jumped) {
+          W.tempos.push(now);
+          ondas.push({ t0: now, sp: Array.from({ length: 10 }, (_, i) => ({ a: Math.PI * (0.08 + 0.84 * i / 9) + (Math.random() - 0.5) * 0.2, v: 0.6 + Math.random() * 0.8 })) });
           lastJumpAt = now;
           if (profile.ropeSound) somCorda(actx, counter.period);
           else beep(880, 45);
@@ -1059,11 +1173,59 @@ async function startWorkout() {
         ctx.arc(x, y, 5, 0, 7);
         ctx.fill();
       }
+      if (phase === "run") efeitoChao(P, lm, now, sw * vh * sc, ondas, ultimoH);
       if (profile.rope && phase !== "position") drawRope(P, lm, now, counter, lastJumpAt, sw * vh * sc);
     }
     ctx.restore();
   };
   loop();
+}
+function chaoDe(P, lm, swPx) {
+  const pes = [L.la, L.ra].filter((i) => vis(lm, i) > 0.3).map((i) => P(i));
+  if (pes.length) return { x: pes.reduce((a2, p) => a2 + p[0], 0) / pes.length, y: Math.max(...pes.map((p) => p[1])) + swPx * 0.12 };
+  const a = P(L.ls), b2 = P(L.rs);
+  return { x: (a[0] + b2[0]) / 2, y: (a[1] + b2[1]) / 2 + swPx * 3.6 };
+}
+function efeitoChao(P, lm, now, swPx, ondas, h) {
+  const c = chaoDe(P, lm, swPx), alt = Math.min(0.6, Math.max(0, h) * 2.5), rx = swPx * 0.95 * (1 - alt * 0.5);
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,.38)";
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y, rx, rx * 0.22, 0, 0, 7);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(232,194,49,.45)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  for (let i = ondas.length - 1; i >= 0; i--) {
+    const o = ondas[i], a = (now - o.t0) / 700;
+    if (a >= 1) {
+      ondas.splice(i, 1);
+      continue;
+    }
+    const r = swPx * 0.8 + a * swPx * 2.4;
+    ctx.globalAlpha = 1 - a;
+    ctx.shadowColor = "#d4511a";
+    ctx.shadowBlur = 18;
+    ctx.lineWidth = 2 + 7 * (1 - a);
+    ctx.strokeStyle = "#e8c231";
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, r, r * 0.24, 0, 0, 7);
+    ctx.stroke();
+    ctx.lineWidth = 2 + 4 * (1 - a);
+    ctx.strokeStyle = "#d4511a";
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, r * 0.65, r * 0.65 * 0.24, 0, 0, 7);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#fff3b0";
+    for (const sp of o.sp) {
+      const d = a * sp.v * swPx * 1.6;
+      ctx.beginPath();
+      ctx.arc(c.x + Math.cos(sp.a) * d * 1.6, c.y - Math.sin(sp.a) * d * 0.9 - a * swPx * 0.25, 4 * (1 - a) + 1, 0, 7);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
 }
 function drawRope(P, lm, now, counter, lastJumpAt, swPx) {
   const [lsx, lsy] = P(L.ls), [rsx, rsy] = P(L.rs);
@@ -1072,26 +1234,29 @@ function drawRope(P, lm, now, counter, lastJumpAt, swPx) {
   const feet = [L.la, L.ra].filter((i) => vis(lm, i) > 0.3).map((i) => P(i)[1]);
   const hy = (ly + ry) / 2, nose = P(L.nose)[1];
   const feetY = feet.length ? Math.max(...feet) + 8 : hy + swPx * 2.6, headY = Math.min(nose - swPx * 0.6, hy - swPx * 2);
-  let ropeY;
-  if (now - lastJumpAt < 1400) {
-    const th = 2 * Math.PI * ((now - counter.lastTake) / counter.period % 1);
-    ropeY = feetY * (1 + Math.cos(th)) / 2 + headY * (1 - Math.cos(th)) / 2;
-  } else ropeY = hy + (feetY - hy) * 0.55;
-  const mx = (lx + rx) / 2, cy = 2 * ropeY - hy;
-  const g = ctx.createLinearGradient(lx, 0, rx, 0);
-  g.addColorStop(0, "#d4511a");
-  g.addColorStop(0.5, "#e8c231");
-  g.addColorStop(1, "#d4511a");
-  ctx.lineCap = "round";
-  ctx.strokeStyle = g;
-  ctx.lineWidth = 7;
-  ctx.shadowColor = "#d4511a";
-  ctx.shadowBlur = 16;
-  ctx.beginPath();
-  ctx.moveTo(lx, ly);
-  ctx.quadraticCurveTo(mx, cy, rx, ry);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
+  const ativo = now - lastJumpAt < 1400;
+  const nivel2 = ativo ? nivelCorda((now - counter.lastTake) / counter.period % 1) : -0.9;
+  const alfa = ativo ? visivelCorda(nivel2) : 1;
+  if (alfa > 0) {
+    const alvo = nivel2 >= 0 ? hy + (headY - hy) * nivel2 : hy + (feetY - hy) * -nivel2;
+    const dir = lx < rx ? 1 : -1, folga = Math.max(swPx * 0.7, Math.abs(rx - lx) * 0.55), cy = hy + (alvo - hy) * 1.33;
+    const g = ctx.createLinearGradient(lx, 0, rx, 0);
+    g.addColorStop(0, "#d4511a");
+    g.addColorStop(0.5, "#e8c231");
+    g.addColorStop(1, "#d4511a");
+    ctx.save();
+    ctx.globalAlpha = alfa;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 7;
+    ctx.shadowColor = "#d4511a";
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
+    ctx.bezierCurveTo(lx - dir * folga, cy, rx + dir * folga, cy, rx, ry);
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.fillStyle = "#f5f0e8";
   for (const [x, y] of [[lx, ly], [rx, ry]]) {
     ctx.beginPath();
@@ -1188,9 +1353,16 @@ function finish() {
   }
   $("rPremios").textContent = W.premios && W.premios.length ? "Pr\xEAmios deste treino: " + W.premios.join(" ") : "";
   $("rMeta").hidden = !W.meta;
+  const rt = ritmoDe(W.tempos || []);
+  $("rRitmo").textContent = rt ? `Ritmo est\xE1vel: ${rt.estavel}% \xB7 cad\xEAncia m\xE9dia: ${rt.cadencia} saltos/min` : "";
+  W.last = { ...item, comida: cf ? `${cf.emoji} ${cf.texto}` : "", premios: (W.premios || []).join(" "), ritmo: rt ? `Ritmo est\xE1vel ${rt.estavel}% \xB7 ${rt.cadencia} saltos/min` : "" };
   $("rRank").textContent = "";
   $("result").hidden = false;
-  W.last = item;
+  if (!token) {
+    $("rRank").textContent = "Treino salvo neste celular. Crie uma conta para entrar no ranking.";
+    renderHome();
+    return;
+  }
   pending.push({ t: item.t, jumps: e.jumps, secs: e.secs });
   store.set("rj.pending", pending);
   $("rRank").textContent = "Enviando\u2026";
@@ -1227,6 +1399,27 @@ $("rShare").addEventListener("click", async () => {
   const it = W.last;
   if (!it) return;
   const text = `Fiz ${it.jumps} saltos em ${mmss(it.secs)} no Ronald Jump e queimei ${num(it.kcal, 1)} kcal. Venha saltar tamb\xE9m!`;
+  try {
+    const blob = await gerarCartao({ jumps: it.jumps, secs: it.secs, kcal: num(it.kcal, 1), comida: it.comida, premios: it.premios, ritmo: it.ritmo, site: location.host });
+    const file = blob && new File([blob], "ronald-jump-treino.png", { type: "image/png" });
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "Ronald Jump", text });
+      return;
+    }
+    if (blob) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "ronald-jump-treino.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4e3);
+      toast("Imagem salva. Poste nos seus Stories!");
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === "AbortError") return;
+  }
   try {
     if (navigator.share) await navigator.share({ title: "Ronald Jump", text, url: location.origin });
     else {
@@ -1351,7 +1544,13 @@ function aplicarUsuario(u) {
   carregarMinhaFoto();
 }
 async function iniciar() {
-  if (!token) return irParaEntrar();
+  if (!token) {
+    if (store.get("rj.guest", false)) {
+      entrar();
+      return;
+    }
+    return irParaEntrar();
+  }
   let r = null;
   try {
     r = await api("/api/me");
@@ -1383,10 +1582,40 @@ async function iniciar() {
 }
 function entrar() {
   $("auth").hidden = true;
+  document.body.classList.toggle("convidado", !token);
   renderGoals();
   renderProfile();
   show("home");
+  if (!profile.boas) abrirBoas();
 }
+var boasI = 0;
+function abrirBoas() {
+  boasI = 0;
+  $("boas").hidden = false;
+  mostrarBoas();
+}
+function mostrarBoas() {
+  document.querySelectorAll("#boas .slide").forEach((el, i) => {
+    el.hidden = i !== boasI;
+  });
+  document.querySelectorAll("#boas .pts i").forEach((el, i) => el.classList.toggle("on", i === boasI));
+  $("boasNext").textContent = boasI === 2 ? "Come\xE7ar" : "Pr\xF3ximo";
+}
+$("boasNext").addEventListener("click", () => {
+  if (boasI < 2) {
+    boasI++;
+    mostrarBoas();
+  } else {
+    $("boas").hidden = true;
+    profile.boas = 1;
+    saveProfile();
+  }
+});
+$("boasPular").addEventListener("click", () => {
+  $("boas").hidden = true;
+  profile.boas = 1;
+  saveProfile();
+});
 renderGoals();
 renderProfile();
 aplicarDist();
