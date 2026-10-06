@@ -182,3 +182,8 @@ body.convidado .so-conta{display:none!important}body:not(.convidado) .so-convida
 .aviso-conta{background:var(--char);border:1.5px solid var(--yellow);border-radius:16px;padding:14px 16px;margin:12px 0;color:var(--bone);font-size:15px}
 .aviso-conta .btn{margin-top:10px}
 .ritmo{font-size:15px;color:var(--muted);margin:8px 0 0}
+
+/* topo do perfil: conta e sair */
+.conta-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--char);border:1.5px solid var(--mid);border-radius:16px;padding:12px 14px;margin:6px 0 14px}
+.conta-topo b{display:block;font-size:17px}.conta-topo small{display:block;color:var(--muted);font-size:13px;word-break:break-all}
+.conta-topo .btn{width:auto;margin-top:0;flex:none;padding:12px 18px}

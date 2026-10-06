@@ -20,6 +20,10 @@ var JumpCounter = class {
     this.lastTake = -1e9;
     this.lastLand = 0;
     this.period = 600;
+    this.glitch = 0;
+    this.h = 0;
+    this.low = 0;
+    this.lg = 0;
   }
   rebase() {
     this.ema = null;
@@ -30,12 +34,39 @@ var JumpCounter = class {
     this.pt = null;
     this.peak = 0;
   }
+  decolar(t, h) {
+    this.state = "air";
+    this.peak = h;
+    this.low = h;
+    if (this.lastTake > 0) this.period = Math.min(1500, Math.max(250, t - this.lastTake));
+    this.lastTake = t;
+  }
   update(y, scale, t) {
     let jumped = false;
-    if (!(scale > 0)) return { jumped, count: this.count, state: this.state, h: 0 };
+    if (!(scale > 0)) return { jumped, count: this.count, state: this.state, h: this.h };
     if (this.ema === null) {
       this.ema = y;
       this.base = y;
+    }
+    if (this.pt !== null && t - this.pt > 800) {
+      this.state = "ground";
+      this.armed = true;
+      this.v = 0;
+      this.peak = 0;
+      this.ema = y;
+      this.base = y;
+      this.pt = null;
+      this.glitch = 0;
+    }
+    if (Math.abs(y - this.ema) > 0.7 * scale && this.glitch < 3) {
+      this.glitch++;
+      return { jumped, count: this.count, state: this.state, h: this.h };
+    }
+    this.glitch = 0;
+    if (this.state === "air" && t - this.lastTake > 1500) {
+      this.state = "ground";
+      this.armed = false;
+      this.peak = 0;
     }
     const prev = this.ema;
     this.ema += 0.6 * (y - this.ema);
@@ -46,26 +77,34 @@ var JumpCounter = class {
     this.pt = t;
     const h = (this.base - this.ema) / scale;
     if (this.state === "ground") {
-      if (!this.armed && h < this.up * 0.8) this.armed = true;
+      if (!this.armed) {
+        this.lg = Math.min(this.lg, h);
+        if (h < this.up * 0.8 || h - this.lg > this.up * 0.6) this.armed = true;
+      }
       if (this.armed) this.base += (this.ema > this.base ? 0.3 : 3e-3) * (this.ema - this.base);
       if (this.armed && h > this.up && this.v > 0.2 && t - this.lastTake > this.minGap) {
-        this.state = "air";
-        this.peak = h;
-        if (this.lastTake > 0) this.period = Math.min(1500, Math.max(250, t - this.lastTake));
-        this.lastTake = t;
+        this.decolar(t, h);
       }
     } else {
-      this.peak = Math.max(this.peak, h);
-      if (h < Math.max(this.down, this.peak * 0.45)) {
+      if (h >= this.peak) {
+        this.peak = h;
+        this.low = h;
+      } else this.low = Math.min(this.low, h);
+      const pousou = h < Math.max(this.down, this.peak * 0.45);
+      const subiuDeNovo = this.low < this.peak * 0.6 && h - this.low > this.peak * 0.5 && this.v > 0.2 && t - this.lastTake > this.minGap;
+      if (pousou || subiuDeNovo) {
         this.state = "ground";
         this.lastLand = t;
         this.armed = false;
+        this.lg = h;
         if (this.peak >= this.up) {
           this.count++;
           jumped = true;
         }
+        if (subiuDeNovo && h > this.up) this.decolar(t, h);
       }
     }
+    this.h = h;
     return { jumped, count: this.count, state: this.state, h };
   }
 };
@@ -418,7 +457,7 @@ var NADA = new Proxy(function() {
 }, toggle() {
 }, contains: () => false } : k === Symbol.toPrimitive ? () => "" : NADA, set: () => true, apply: () => NADA });
 var $ = (id) => document.getElementById(id) || NADA;
-var VERSAO = 13;
+var VERSAO = 14;
 (async () => {
   const meta = Number(document.querySelector('meta[name="rj-versao"]')?.content || 0);
   try {
@@ -464,11 +503,7 @@ var dayKey = (d) => {
   const x = new Date(d);
   return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
 };
-var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, dist: "corpo", distV: 0, distCustom: null, premios: 0, metaDia: 300, boas: 0, dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
-if (!profile.distV) {
-  if (profile.dist !== "custom") profile.dist = "corpo";
-  profile.distV = 1;
-}
+var profile = Object.assign({ name: "", kg: 70, country: "BR", sound: true, rank: true, rope: true, ropeSound: true, premios: 0, metaDia: 300, boas: 0, dicas: 0, goal: "free", sens: "normal" }, store.get("rj.profile", {}));
 var saveProfile = () => store.set("rj.profile", profile);
 saveProfile();
 var history = store.get("rj.hist", []);
@@ -835,7 +870,7 @@ async function loadModel(onStatus) {
     } catch {
       url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task";
     }
-    const opts = (d) => ({ baseOptions: { modelAssetPath: url, delegate: d }, runningMode: "VIDEO", numPoses: 1, minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+    const opts = (d) => ({ baseOptions: { modelAssetPath: url, delegate: d }, runningMode: "VIDEO", numPoses: 1, minPoseDetectionConfidence: 0.4, minPosePresenceConfidence: 0.4, minTrackingConfidence: 0.4 });
     try {
       landmarker = await PoseLandmarker.createFromOptions(fileset, opts("GPU"));
     } catch {
@@ -849,24 +884,11 @@ async function loadModel(onStatus) {
     loading = null;
   }
 }
-var DIST = {
-  perto: { min: 0.2, run: 0.15, ideal: 0.28, max: 0.62, txt: "cerca de 1 metro", passos: "dois passos" },
-  medio: { min: 0.13, run: 0.1, ideal: 0.17, max: 0.45, txt: "cerca de 1,5 a 2 metros", passos: "tr\xEAs passos" },
-  longe: { min: 0.09, run: 0.07, ideal: 0.12, max: 0.3, txt: "cerca de 2,5 a 3 metros", passos: "quatro passos" },
-  // corpo inteiro: exige cabeça, ombros, quadril e pés na tela (altura do corpo = 55% a 92% da imagem); não usa a largura dos ombros
-  corpo: { min: 0.09, run: 0.05, ideal: 0.12, max: 0.3, corpo: true, txt: "cerca de 2 a 2,5 metros", passos: "tr\xEAs a quatro passos" }
-};
-var distAtual = () => profile.dist === "custom" && profile.distCustom ? { ...profile.distCustom, txt: "a dist\xE2ncia que voc\xEA calibrou", passos: "a mesma posi\xE7\xE3o da calibra\xE7\xE3o" } : DIST[profile.dist] || DIST.medio;
-function salvarDistCustom(sw) {
-  profile.distCustom = { ideal: +sw.toFixed(3), min: +(sw * 0.78).toFixed(3), run: +(sw * 0.6).toFixed(3), max: +(sw * 1.7).toFixed(3) };
-  profile.dist = "custom";
-  saveProfile();
-  aplicarDist();
-}
-var mediana = (a) => {
-  const b = [...a].sort((x, y) => x - y);
-  return b[Math.floor(b.length / 2)];
-};
+var CORPO = { min: 0.55, max: 0.92, ombrosRun: 0.05 };
+var VIS_POS = 0.5;
+var VIS_RUN = 0.25;
+var FOLGA_MS = 3e3;
+var MANTER_POSE_MS = 800;
 var dicaAberta = false;
 var estadoAtual = "";
 function estado(tipo) {
@@ -957,13 +979,8 @@ async function startWorkout() {
   }
   const counter = new JumpCounter({ up: { alta: 0.035, normal: 0.05, baixa: 0.07 }[profile.sens] || 0.05 });
   let mode = "tronco", modeSince = 0;
-  let phase = "position", okSince = 0, calib = null, calibBeep = 0, ultimaComida = "", ultimoMarco = 0;
-  W.calibrar = () => {
-    calib = { t0: performance.now(), s: [] };
-    abrirDica(false);
-    $("calibrar").hidden = true;
-  };
-  $("calibrar").hidden = false;
+  let phase = "position", okSince = 0, ultimaComida = "", ultimoMarco = 0, boa = null, boaT = 0, swBoa = 0;
+  cordaAnc = null;
   let t0 = 0, active = 0, lastTick = 0, lastSeen = 0, lastJumpAt = 0, lastVT = -1, paused = false;
   const counted = () => counter.count;
   W.running = true;
@@ -1000,65 +1017,43 @@ async function startWorkout() {
     ctx.drawImage(video, ox, oy, vw * sc, vh * sc);
     ctx.fillStyle = "rgba(0,0,0,.28)";
     ctx.fillRect(0, 0, cw, ch);
-    const P = (i) => [ox + lm[i].x * vw * sc, oy + lm[i].y * vh * sc];
-    const shOk = !!lm && [L.ls, L.rs].every((i) => vis(lm, i) > 0.5);
-    const hipOk = !!lm && [L.lh, L.rh].every((i) => vis(lm, i) > 0.5);
+    const run = phase === "run", visMin = run ? VIS_RUN : VIS_POS;
+    const shOk = !!lm && [L.ls, L.rs].every((i) => vis(lm, i) > visMin);
+    const hipOk = !!lm && [L.lh, L.rh].every((i) => vis(lm, i) > visMin);
     const sw = shOk ? Math.hypot((lm[L.ls].x - lm[L.rs].x) * vw, (lm[L.ls].y - lm[L.rs].y) * vh) / vh : 0;
-    const dd = distAtual();
-    let longe, perto, torsoOk, semPes = false;
-    if (dd.corpo) {
-      const todos = !!lm && [0, L.ls, L.rs, L.lh, L.rh, L.la, L.ra].every((i) => vis(lm, i) > 0.5);
+    let longe = false, perto = false, torsoOk, semPes = false;
+    if (run) torsoOk = shOk && sw > CORPO.ombrosRun;
+    else {
+      const todos = !!lm && [0, L.ls, L.rs, L.lh, L.rh, L.la, L.ra].every((i) => vis(lm, i) > VIS_POS);
       const alt = todos ? (lm[L.la].y + lm[L.ra].y) / 2 - lm[0].y : 0;
       const dentro = todos && lm[0].y > 0.01 && Math.max(lm[L.la].y, lm[L.ra].y) < 0.985;
-      longe = todos && alt < 0.55;
-      perto = todos && (alt > 0.92 || !dentro);
+      longe = todos && alt < CORPO.min;
+      perto = todos && (alt > CORPO.max || !dentro);
       semPes = shOk && !todos;
-      torsoOk = phase === "run" ? shOk && sw > dd.run : todos && !longe && !perto;
-    } else {
-      longe = shOk && sw < (phase === "run" ? dd.run : dd.min);
-      perto = shOk && sw > dd.max;
-      torsoOk = shOk && !longe && (phase === "run" || !perto);
+      torsoOk = todos && !longe && !perto;
     }
     if (torsoOk) {
       const want = hipOk ? "tronco" : "ombros";
-      if (phase !== "run") {
+      if (!run) {
         mode = want;
         modeSince = 0;
       } else if (want !== mode) {
         if (!modeSince) modeSince = now;
-        if (now - modeSince > 500) {
+        if (now - modeSince > 1500) {
           mode = want;
           modeSince = 0;
           counter.rebase();
         }
       } else modeSince = 0;
       lastSeen = now;
+      boa = lm;
+      boaT = now;
+      swBoa = sw;
     }
+    const lmD = torsoOk ? lm : run && boa && now - boaT < MANTER_POSE_MS ? boa : null, swD = torsoOk ? sw : swBoa;
+    const P = (i) => [ox + lmD[i].x * vw * sc, oy + lmD[i].y * vh * sc];
     if (phase === "position") {
-      if (calib) {
-        okSince = 0;
-        const dt = now - calib.t0;
-        if (dt < 5e3) {
-          const seg = Math.ceil((5e3 - dt) / 1e3);
-          msg(`V\xE1 para a posi\xE7\xE3o em que o outro app funciona bem\u2026 ${seg}`);
-          if (seg !== calibBeep) {
-            calibBeep = seg;
-            beep(660, 100);
-          }
-        } else if (dt < 6500) {
-          msg("Fique parado\u2026");
-          if (shOk) calib.s.push(sw);
-        } else {
-          if (calib.s.length >= 10) {
-            salvarDistCustom(mediana(calib.s));
-            msg("Pronto! Dist\xE2ncia salva.");
-            beep(1100, 250);
-            toast("Dist\xE2ncia salva. O app vai usar essa posi\xE7\xE3o.");
-          } else msg("N\xE3o consegui ver voc\xEA. Fique de frente para a c\xE2mera e tente de novo.");
-          calib = null;
-          $("calibrar").hidden = false;
-        }
-      } else if (dicaAberta) {
+      if (dicaAberta) {
         okSince = 0;
         msg("");
       } else if (torsoOk) {
@@ -1066,13 +1061,12 @@ async function startWorkout() {
         msg("");
       } else {
         okSince = 0;
-        msg(!lm ? "Procurando voc\xEA\u2026 fique de frente para a c\xE2mera" : semPes ? "Afaste-se at\xE9 aparecer o corpo todo, da cabe\xE7a aos p\xE9s" : longe && dd.corpo ? "Chegue um pouco mais perto: o corpo deve ocupar a maior parte da tela" : longe ? "Chegue mais perto: encha o contorno com cabe\xE7a e ombros" : perto ? "Afaste s\xF3 um pouquinho" : "Mostre a cabe\xE7a e os ombros para a c\xE2mera");
+        msg(!lm ? "Procurando voc\xEA\u2026 fique de frente para a c\xE2mera" : semPes ? "Afaste-se at\xE9 aparecer o corpo todo, da cabe\xE7a aos p\xE9s" : longe ? "Chegue um pouco mais perto: o corpo deve ocupar a maior parte da tela" : perto ? "Afaste s\xF3 um pouquinho" : "Mostre o corpo todo, da cabe\xE7a aos p\xE9s");
       }
-      if (calib || dicaAberta) estado("oculto");
+      if (dicaAberta) estado("oculto");
       else estado(torsoOk ? "pronto" : "fora");
       if (okSince && now - okSince > 800) {
         phase = "run";
-        $("calibrar").hidden = true;
         $("stop").hidden = false;
         t0 = lastTick = lastSeen = now;
         beep(1100, 300);
@@ -1084,7 +1078,7 @@ async function startWorkout() {
         }, 1300);
       }
     } else if (phase === "run") {
-      const tracked = now - lastSeen < 1500;
+      const tracked = now - lastSeen < FOLGA_MS;
       if (tracked) {
         if (paused) {
           paused = false;
@@ -1095,7 +1089,7 @@ async function startWorkout() {
       } else if (!paused) {
         paused = true;
         estado("fora");
-        msg("Pausado. Chegue mais perto e volte ao enquadramento.");
+        msg("Pausado: n\xE3o estou te vendo. Volte para o enquadramento.");
       }
       lastTick = now;
       let y = 0, scale = 0;
@@ -1165,16 +1159,16 @@ async function startWorkout() {
       }
       W.end = { jumps: counter.count, secs: Math.round(active) };
     }
-    if (lm && torsoOk) {
+    if (lmD) {
       ctx.fillStyle = "rgba(232,194,49,.85)";
-      for (const i of hipOk ? [L.ls, L.rs, L.lh, L.rh] : [L.ls, L.rs]) {
+      for (const i of hipOk && torsoOk ? [L.ls, L.rs, L.lh, L.rh] : [L.ls, L.rs]) {
         const [x, y] = P(i);
         ctx.beginPath();
         ctx.arc(x, y, 5, 0, 7);
         ctx.fill();
       }
-      if (phase === "run") efeitoChao(P, lm, now, sw * vh * sc, ondas, ultimoH);
-      if (profile.rope && phase !== "position") drawRope(P, lm, now, counter, lastJumpAt, sw * vh * sc);
+      if (phase === "run") efeitoChao(P, lmD, now, swD * vh * sc, ondas, ultimoH);
+      if (profile.rope && phase !== "position") drawRope(P, lmD, now, counter, lastJumpAt, swD * vh * sc, cw, ch);
     }
     ctx.restore();
   };
@@ -1227,70 +1221,82 @@ function efeitoChao(P, lm, now, swPx, ondas, h) {
   }
   ctx.restore();
 }
-function drawRope(P, lm, now, counter, lastJumpAt, swPx) {
+var cordaAnc = null;
+var suave = (ant, alvo, a) => ant === void 0 ? alvo : ant + (alvo - ant) * a;
+function drawRope(P, lm, now, counter, lastJumpAt, swPx, cw, ch) {
   const [lsx, lsy] = P(L.ls), [rsx, rsy] = P(L.rs);
-  const [lx, ly] = vis(lm, L.lw) > 0.3 ? P(L.lw) : [lsx + (lsx - rsx) * 0.35, lsy + swPx * 1.5];
-  const [rx, ry] = vis(lm, L.rw) > 0.3 ? P(L.rw) : [rsx + (rsx - lsx) * 0.35, rsy + swPx * 1.5];
-  const feet = [L.la, L.ra].filter((i) => vis(lm, i) > 0.3).map((i) => P(i)[1]);
-  const hy = (ly + ry) / 2, nose = P(L.nose)[1];
-  const feetY = feet.length ? Math.max(...feet) + 8 : hy + swPx * 2.6, headY = Math.min(nose - swPx * 0.6, hy - swPx * 2);
+  const [lx0, ly0] = vis(lm, L.lw) > 0.25 ? P(L.lw) : [lsx + (lsx - rsx) * 0.35, lsy + swPx * 1.5];
+  const [rx0, ry0] = vis(lm, L.rw) > 0.25 ? P(L.rw) : [rsx + (rsx - lsx) * 0.35, rsy + swPx * 1.5];
+  const feet = [L.la, L.ra].filter((i) => vis(lm, i) > 0.25).map((i) => P(i)[1]);
+  const nose = P(L.nose)[1];
+  const feetY0 = feet.length ? Math.max(...feet) + 8 : (ly0 + ry0) / 2 + swPx * 2.6, headY0 = Math.min(nose - swPx * 0.6, (ly0 + ry0) / 2 - swPx * 2);
+  const A = cordaAnc || (cordaAnc = {});
+  A.lx = suave(A.lx, lx0, 0.45);
+  A.ly = suave(A.ly, ly0, 0.45);
+  A.rx = suave(A.rx, rx0, 0.45);
+  A.ry = suave(A.ry, ry0, 0.45);
+  A.fy = suave(A.fy, feetY0, 0.3);
+  A.hy = suave(A.hy, headY0, 0.3);
+  const hy = (A.ly + A.ry) / 2, topo = Math.max(30, A.hy), base = Math.min(ch - 30, A.fy);
   const ativo = now - lastJumpAt < 1400;
   const nivel2 = ativo ? nivelCorda((now - counter.lastTake) / counter.period % 1) : -0.9;
   const alfa = ativo ? visivelCorda(nivel2) : 1;
   if (alfa > 0) {
-    const alvo = nivel2 >= 0 ? hy + (headY - hy) * nivel2 : hy + (feetY - hy) * -nivel2;
-    const dir = lx < rx ? 1 : -1, folga = Math.max(swPx * 0.7, Math.abs(rx - lx) * 0.55), cy = hy + (alvo - hy) * 1.33;
-    const g = ctx.createLinearGradient(lx, 0, rx, 0);
+    const alvo = nivel2 >= 0 ? hy + (topo - hy) * nivel2 : hy + (base - hy) * -nivel2;
+    const dx = Math.abs(A.rx - A.lx), dir = A.lx < A.rx ? 1 : -1;
+    const larg = Math.max(swPx * 1.8, dx + swPx * 0.9), e = (larg - dx) / 2 * 2.6, cy = hy + (alvo - hy) * 1.33;
+    const g = ctx.createLinearGradient(A.lx, 0, A.rx, 0);
     g.addColorStop(0, "#d4511a");
     g.addColorStop(0.5, "#e8c231");
     g.addColorStop(1, "#d4511a");
+    const caminho = () => {
+      ctx.beginPath();
+      ctx.moveTo(A.lx, A.ly);
+      ctx.bezierCurveTo(A.lx - dir * e, cy, A.rx + dir * e, cy, A.rx, A.ry);
+    };
     ctx.save();
-    ctx.globalAlpha = alfa;
     ctx.lineCap = "round";
+    ctx.globalAlpha = alfa * 0.35;
+    ctx.strokeStyle = "#d4511a";
+    ctx.lineWidth = 17;
+    ctx.shadowColor = "#e8c231";
+    ctx.shadowBlur = 26;
+    caminho();
+    ctx.stroke();
+    ctx.globalAlpha = alfa;
     ctx.strokeStyle = g;
     ctx.lineWidth = 7;
-    ctx.shadowColor = "#d4511a";
-    ctx.shadowBlur = 16;
-    ctx.beginPath();
-    ctx.moveTo(lx, ly);
-    ctx.bezierCurveTo(lx - dir * folga, cy, rx + dir * folga, cy, rx, ry);
+    ctx.shadowBlur = 14;
+    caminho();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(255,255,255,.8)";
+    ctx.lineWidth = 2;
+    caminho();
     ctx.stroke();
     ctx.restore();
   }
-  ctx.fillStyle = "#f5f0e8";
-  for (const [x, y] of [[lx, ly], [rx, ry]]) {
+  ctx.save();
+  ctx.lineCap = "round";
+  for (const [x, y] of [[A.lx, A.ly], [A.rx, A.ry]]) {
+    ctx.strokeStyle = "#1c1c1c";
+    ctx.lineWidth = 13;
     ctx.beginPath();
-    ctx.arc(x, y, 9, 0, 7);
+    ctx.moveTo(x, y - 2);
+    ctx.lineTo(x, y + 20);
+    ctx.stroke();
+    ctx.fillStyle = "#e8c231";
+    ctx.beginPath();
+    ctx.arc(x, y - 3, 8, 0, 7);
     ctx.fill();
   }
+  ctx.restore();
 }
-function aplicarDist() {
-  if (profile.dist === "custom" && !profile.distCustom) profile.dist = "medio";
-  const d = distAtual(), tem = !!profile.distCustom;
-  document.querySelectorAll("#distChips button").forEach((b) => {
-    b.setAttribute("aria-checked", String(b.dataset.d === profile.dist));
-    if (b.dataset.d === "custom") b.hidden = !tem;
-  });
-  $("dicaDist").innerHTML = d.corpo ? `D\xEA alguns passos para tr\xE1s, a <b>${d.txt}</b>, at\xE9 aparecer o <b>corpo todo, da cabe\xE7a aos p\xE9s</b>.` : profile.dist === "custom" ? "Fique na <b>mesma posi\xE7\xE3o que voc\xEA calibrou</b>." : `Fique a <b>${d.txt}</b> (${d.passos}).`;
-  $("dicaTxt").textContent = profile.dist === "custom" ? "sua posi\xE7\xE3o" : d.txt;
-  const oc = $("pDist").querySelector('option[value="custom"]');
-  if (oc) oc.disabled = !tem;
-  $("pDist").value = profile.dist;
-}
-function escolherDist(v) {
-  if (!DIST[v] && !(v === "custom" && profile.distCustom)) return;
-  profile.dist = v;
-  saveProfile();
-  aplicarDist();
-}
-document.querySelectorAll("#distChips button").forEach((b) => b.addEventListener("click", () => escolherDist(b.dataset.d)));
-$("pDist").addEventListener("change", (e) => escolherDist(e.target.value));
 function abrirDica(sim) {
   dicaAberta = !!sim;
   $("dica").hidden = !sim;
 }
 $("dicaOk").addEventListener("click", () => abrirDica(false));
-$("calibrar").addEventListener("click", () => W.calibrar && W.calibrar());
 $("ajuda").addEventListener("click", () => abrirDica(true));
 var kcalPopT = 0;
 function kcalPop(t1, t2, tent = 0) {
@@ -1515,13 +1521,16 @@ $("sExport").addEventListener("click", async () => {
     toast("N\xE3o foi poss\xEDvel baixar seus dados agora.");
   }
 });
-$("logout").addEventListener("click", async () => {
+async function sair() {
+  if (!confirm("Sair da conta neste celular?")) return;
   try {
     await api("/api/logout", { method: "POST" });
   } catch {
   }
   sairLocal();
-});
+}
+$("logout").addEventListener("click", sair);
+$("logout2").addEventListener("click", sair);
 $("delAcc").addEventListener("click", async () => {
   const pw = $("dPass").value;
   if (!pw) return toast("Digite sua senha para confirmar.");
@@ -1540,6 +1549,8 @@ function aplicarUsuario(u) {
   profile.kg = u.kg;
   saveProfile();
   $("pEmail").textContent = u.email;
+  $("pNomeTopo").textContent = u.name;
+  $("pEmailTopo").textContent = u.email;
   renderProfile();
   carregarMinhaFoto();
 }
@@ -1618,7 +1629,6 @@ $("boasPular").addEventListener("click", () => {
 });
 renderGoals();
 renderProfile();
-aplicarDist();
 renderHome();
 modoAuth("login");
 iniciar();

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Ronald Jump</title>
 <meta name="theme-color" content="#0a0a0a">
-<meta name="rj-versao" content="13">
+<meta name="rj-versao" content="14">
 <meta name="description" content="Conte seus saltos pela câmera, veja as calorias e entre no ranking.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -78,6 +78,7 @@
       <input type="file" id="pFotoInput" accept="image/*" hidden>
     </div>
     <label class="switch so-conta" id="pFotoRankLbl" hidden><input type="checkbox" id="pFotoRank"><span>Mostrar minha foto no ranking (outras pessoas poderão ver)</span></label>
+    <div class="conta-topo so-conta"><div><b id="pNomeTopo"></b><small id="pEmailTopo"></small></div><button class="btn small ghost" id="logout2" type="button">Sair da conta</button></div>
     <div class="so-convidado aviso-conta"><b>Você está usando sem conta.</b> Seus treinos ficam só neste celular. Crie uma conta para entrar no ranking e guardar tudo na nuvem.<a class="btn small" href="/entrar.html">Entrar ou criar conta</a></div>
     <p class="muted so-conta" id="pEmail"></p>
     <p class="muted" id="pPremios"></p>
@@ -85,8 +86,6 @@
     <label class="field">Peso (kg), para estimar calorias<input id="pKg" type="number" inputmode="decimal" min="30" max="250" step="0.5"></label>
     <label class="field so-conta">País<select id="pCountry"></select></label>
     <label class="field">Meta diária de saltos<input id="pMetaDia" type="number" inputmode="numeric" min="50" max="5000" step="10"></label>
-    <label class="field">Distância do treino<select id="pDist"><option value="corpo">Corpo inteiro (2 a 2,5 m, da cabeça aos pés)</option><option value="perto">Perto (cerca de 1 m, só ombros)</option><option value="medio">Média (1,5 a 2 m)</option><option value="longe">Longe (2,5 a 3 m, corpo inteiro)</option><option value="custom" disabled>Minha posição (calibrada)</option></select></label>
-    <p class="muted">Quer a mesma distância de outro app (como o Jumpr)? Fique onde ele funciona bem, abra o treino aqui com o celular no mesmo lugar e toque em <b>Calibrar minha distância</b>.</p>
     <label class="field">Sensibilidade da contagem<select id="pSens"><option value="alta">Alta (saltos pequenos)</option><option value="normal">Normal</option><option value="baixa">Baixa (evita contar sem pular)</option></select></label>
     <label class="switch"><input type="checkbox" id="pRope"><span>Som da corda a cada salto</span></label>
     <label class="switch"><input type="checkbox" id="pSound"><span>Som e vibração (inclui as comemorações)</span></label>
@@ -104,7 +103,7 @@
       <button class="btn ghost" id="sAll" type="button">Sair de todos os aparelhos</button>
       <button class="btn ghost" id="sExport" type="button">Baixar meus dados</button>
     </details>
-    <p class="muted" id="versaoApp">Versão 13</p>
+    <p class="muted" id="versaoApp">Versão 14</p>
     <p class="muted"><a href="/estavel/">Abrir a versão estável (sem conta)</a></p>
     <details class="danger so-conta"><summary>Excluir minha conta</summary>
       <p class="muted">Apaga sua conta, seus treinos e seu lugar no ranking. Não dá para desfazer.</p>
@@ -140,7 +139,7 @@
     <div class="kcalCard"><div class="kn"><b id="hKcalBig">0</b> kcal queimadas</div><div class="kf" id="hFood">Continue pulando…</div></div>
   </div>
   <div class="msg" id="hMsg" role="status" aria-live="polite"></div>
-  <div class="hud bot-hud"><button class="btn ghost" id="calibrar" type="button" hidden>Calibrar minha distância</button><button class="btn stop" id="stop" type="button" hidden>Finalizar</button></div>
+  <div class="hud bot-hud"><button class="btn stop" id="stop" type="button" hidden>Finalizar</button></div>
   <div class="countdown" id="cd" hidden></div>
   <div id="dica" hidden role="dialog" aria-label="Como posicionar o celular">
     <div class="sheet">
@@ -158,12 +157,10 @@
       </svg>
       <ol>
         <li>Apoie o celular <b>em pé no chão</b>, encostado numa parede ou móvel, com a <b>câmera da frente</b> virada para você.</li>
-        <li id="dicaDist">Dê alguns passos para trás até aparecer o <b>corpo todo, da cabeça aos pés</b>.</li>
+        <li id="dicaDist">Dê alguns passos para trás (cerca de <b>2 a 2,5 metros</b>) até aparecer o <b>corpo todo, da cabeça aos pés</b>.</li>
         <li>Encaixe o <b>corpo no contorno</b> tracejado (ele fica verde quando está certo).</li>
         <li>Use boa luz e deixe espaço livre para saltar.</li>
-        <li>Já usa outro app (como o Jumpr) com a distância certa? Deixe o celular no mesmo lugar, toque em <b>Calibrar minha distância</b> e vá para a sua posição.</li>
       </ol>
-      <div class="distChips" id="distChips" role="radiogroup" aria-label="Distância do treino"><span>Distância:</span><button type="button" data-d="corpo" role="radio" aria-checked="true">Corpo todo</button><button type="button" data-d="perto" role="radio" aria-checked="false">Perto</button><button type="button" data-d="medio" role="radio" aria-checked="false">Média</button><button type="button" data-d="longe" role="radio" aria-checked="false">Longe</button><button type="button" data-d="custom" role="radio" aria-checked="false" hidden>Minha</button></div>
       <button class="btn" id="dicaOk" type="button">Entendi</button>
     </div>
   </div>
